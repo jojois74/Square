@@ -11,6 +11,7 @@ import box.shoe.gameutils.AbstractGameSurfaceView;
 import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.Fireable;
 import box.shoe.gameutils.GameTasker;
+import box.shoe.gameutils.ParticleEffect;
 import box.shoe.gameutils.Rand;
 import box.shoe.gameutils.Vector;
 
@@ -32,6 +33,8 @@ public class Rope extends AbstractGameEngine
     public LinkedList<Entity> coins;
     private Rand rand;
     private GameTasker scheduler;
+    private ParticleEffect part;
+    public Entity effect;
 
     public Rope(Context appContext, AbstractGameSurfaceView screen)
     {
@@ -46,6 +49,7 @@ public class Rope extends AbstractGameEngine
     protected void initialize()
     {
         player = new Player(getGameWidth() / 6, getGameHeight() / 8, new PlayerPaintable(60, 60));
+        part = new ParticleEffect(player, 7);
         Fireable generateWallAndCoin = new Fireable()
         {
             @Override
@@ -181,5 +185,6 @@ public class Rope extends AbstractGameEngine
         {
             player.setVelocity(player.getVelocity().add(player.actionVelocity.scale(0.65)));
         }
+        effect = new Entity(player.getX(), player.getY(), part.getVisual());
     }
 }

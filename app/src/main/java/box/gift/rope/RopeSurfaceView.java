@@ -36,6 +36,9 @@ public class RopeSurfaceView extends AbstractGameSurfaceView
         // Player
         data.player.paint(canvas, interpolationRatio);
 
+        // Particle
+        data.effect.paint(canvas, interpolationRatio);
+
         // Walls
         LinkedList<Entity> walls = data.walls;
         for (Entity wall : walls)
