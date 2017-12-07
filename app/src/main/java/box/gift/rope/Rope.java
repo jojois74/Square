@@ -9,7 +9,7 @@ import java.util.LinkedList;
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
 import box.shoe.gameutils.Entity;
-import box.shoe.gameutils.Fireable;
+import box.shoe.gameutils.EntityCollisions;
 import box.shoe.gameutils.GameTasker;
 import box.shoe.gameutils.ParticleEffect;
 import box.shoe.gameutils.Rand;
@@ -38,7 +38,7 @@ public class Rope extends AbstractGameEngine
 
     public Rope(Context appContext, AbstractGameSurfaceView screen)
     {
-        super(appContext, screen, Rope.TARGET_UPS);
+        super(appContext, Rope.TARGET_UPS, screen);
         scheduler = new GameTasker(Rope.TARGET_UPS);
         walls = new LinkedList<>();
         coins = new LinkedList<>();
@@ -48,12 +48,12 @@ public class Rope extends AbstractGameEngine
     @Override
     protected void initialize()
     {
-        player = new Player(getGameWidth() / 6, getGameHeight() / 8, new PlayerPaintable(60, 60));
-        part = new ParticleEffect(player, 7);
-        Fireable generateWallAndCoin = new Fireable()
+        //player = new Player(getGameWidth() / 6, getGameHeight() / 8, new PlayerPaintable(60, 60));
+        player = track(new Player(getGameWidth() / 6, getGameHeight() / 8, new PlayerPaintable(60, 60)));
+        Runnable generateWallAndCoin = new Runnable()
         {
             @Override
-            public void fire()
+            public void run()
             {
                 int third = getGameHeight() / 3;
                 int hole = rand.randomBetween(0, 2);
@@ -61,26 +61,28 @@ public class Rope extends AbstractGameEngine
                 WallPaintable wp = new WallPaintable(wallWidth, third);
                 if (hole != 0)
                 {
-                    walls.add(new Entity(getGameWidth(), 0, wp));
+                    walls.add(track(new Entity(getGameWidth(), 0, wp)));
                 }
                 if (hole != 1)
                 {
-                    walls.add(new Entity(getGameWidth(), third, wp));
+                    walls.add(track(new Entity(getGameWidth(), third, wp)));
                 }
                 if (hole != 2)
                 {
-                    walls.add(new Entity(getGameWidth(), 2 * third, wp));
+                    walls.add(track(new Entity(getGameWidth(), 2 * third, wp)));
                 }
 
                 int rand = random.randomBetween(0, 3);
                 int margin = 40;
                 int randHeight = random.randomBetween(margin, getGameHeight() - margin);
                 if (rand == 0)
-                    coins.add(new Entity(getGameWidth() * 1.3, randHeight, new CoinPaintable(80, 80)));
+                {
+                    coins.add(track(new Entity(getGameWidth() * 1.3, randHeight, new CoinPaintable(80, 80))));
+                }
             }
         };
         scheduler.register(2700, 0, generateWallAndCoin);
-        generateWallAndCoin.fire();
+        generateWallAndCoin.run();
     }
 
     @Override
@@ -93,7 +95,6 @@ public class Rope extends AbstractGameEngine
             playerDead();
         }
 
-        player.saveOldPosition();
         player.setVelocity(player.getVelocity().add(new Vector(0, 2)));
         player.moveWithVelocity();
 
@@ -103,7 +104,6 @@ public class Rope extends AbstractGameEngine
         {
             Entity wall = iterator.next();
             double oldX = wall.getX();
-            wall.saveOldPosition();
             wall.setVelocity(new Vector(-21, 0));
             wall.moveWithVelocity();
             if (oldX > player.getX() && wall.getX() < player.getX())
@@ -121,7 +121,7 @@ public class Rope extends AbstractGameEngine
         }
         if (passingWall)
         {
-            score++;
+            score++; //TODO: score should go up a bit later, so you do not gain a point upon dying against a wall
         }
 
         iterator = coins.iterator();
@@ -129,16 +129,12 @@ public class Rope extends AbstractGameEngine
         {
             Entity coin = iterator.next();
             double oldX = coin.getX();
-            coin.saveOldPosition();
             coin.setVelocity(new Vector(-21, 0));
             coin.moveWithVelocity();
-            if (oldX > player.getX() && coin.getX() < player.getX())
+            if (EntityCollisions.collideRectangle(player, coin)) //TODO: use circle collision for coins?
             {
-                if (player.getY() > coin.getY() && player.getY() < coin.getY() + coin.getVisualHeight())
-                {
-                    score++;
-                    iterator.remove();
-                }
+                score++;
+                iterator.remove();
             }
         }
     }
@@ -146,21 +142,20 @@ public class Rope extends AbstractGameEngine
     private void playerDead()
     {
         MainActivity.print("DEAD");
-        endGame();
+        stopGame();
+        MainActivity.print("stop GAME RETURNED");
     }
 
     @Override
     protected void cleanup()
     {
-        super.cleanup();
+        MainActivity.print("Cleanup activate");
         player.cleanup();
         player = null;
         rand = null;
         //Cleanup scheduler TODO
         scheduler = null;
         //Cleanup walls TODO
-
-        dispatchEvent(GameEvent.GAME_OVER);
     }
 
     @Override
@@ -177,14 +172,6 @@ public class Rope extends AbstractGameEngine
 
     private void actionDown()
     {
-        if (player.getVelocity().getY() > 0)
-        {
-            player.setVelocity(player.actionVelocity);
-        }
-        else
-        {
-            player.setVelocity(player.getVelocity().add(player.actionVelocity.scale(0.65)));
-        }
-        effect = new Entity(player.getX(), player.getY(), part.getVisual());
+        player.setVelocity(player.actionVelocity);
     }
 }

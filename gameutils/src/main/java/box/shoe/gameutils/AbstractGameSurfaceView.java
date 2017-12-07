@@ -21,7 +21,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
     private SurfaceHolder holder;
     private volatile boolean surfaceReady = false;
     private AbstractGameEngine abstractData = null;
-    private DimensionListener dimensionListener;
+    private Runnable dimensionListener;
     public Paint paint;
     private boolean preparedToVisualize = false;
     private Canvas canvas;
@@ -45,7 +45,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         {
             throw new IllegalStateException("Surface is not ready to paint. Please call canVisualize() to check.");
         }
-        canvas = holder.lockCanvas();
+        canvas = holder.lockCanvas(null); //TODO: lockHardwareCanvas? api 26?
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR); //Clear the canvas
         preparedToVisualize = true;
     }
@@ -77,9 +77,9 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         surfaceReady = true;
     }
 
-    public void setDimensionListener(DimensionListener obj)
+    public void setDimensionListener(Runnable r)
     {
-        dimensionListener = obj;
+        dimensionListener = r;
     }
 
     @Override
@@ -87,7 +87,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
     {
         if (width > 0 && dimensionListener != null)
         {
-            dimensionListener.onDimensionGiven();
+            dimensionListener.run();
         }
     }
 
@@ -100,10 +100,5 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
     public boolean canVisualize()
     {
         return surfaceReady;
-    }
-
-    abstract static class DimensionListener
-    {
-        public abstract void onDimensionGiven();
     }
 }

@@ -2,6 +2,7 @@ package box.shoe.gameutils;
 
 import android.graphics.Canvas;
 import android.graphics.Point;
+import android.support.annotation.CallSuper;
 import android.util.Log;
 
 import java.math.BigDecimal;

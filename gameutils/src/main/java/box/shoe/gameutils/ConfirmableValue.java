@@ -7,6 +7,7 @@ package box.shoe.gameutils;
 /**
  * A field which can store a supposed value which does not overwrite the previous value until it is confirmed
  * This means that it can store two values at once
+ * This class may be retired upon entity redesign
  */
 public class ConfirmableValue<T>
 {

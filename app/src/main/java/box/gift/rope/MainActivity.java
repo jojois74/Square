@@ -14,11 +14,11 @@ import android.widget.TextView;
 
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
-import box.shoe.gameutils.Fireable;
+import box.shoe.gameutils.GameEventConstants;
 
 
-public class MainActivity extends Activity
-{
+public class MainActivity extends Activity //TODO: destructive callbacks can do work before calling super, do not unpause when game unpauses, look at lunar landing ex
+{//TODO: when back button is pressed it should safely pause like normal
     public static Context appContext;
     private AbstractGameEngine game;
     private AbstractGameSurfaceView gameScreen;
@@ -28,6 +28,7 @@ public class MainActivity extends Activity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         MainActivity.appContext = getApplicationContext();
+        print("CREATE");
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
@@ -37,7 +38,7 @@ public class MainActivity extends Activity
 
     private void setupMenu(int s, int b)
     {
-        setContentView(R.layout.menu);
+        setContentView(R.layout.menu_layout);
         View scoreWrapView = findViewById(R.id.scoreWrap);
         TextView scoreView = (TextView) findViewById(R.id.score);
         if (s > -1)
@@ -61,15 +62,15 @@ public class MainActivity extends Activity
                 int action = event.getActionMasked();
                 if (action == MotionEvent.ACTION_DOWN)
                 {
-                    setContentView(R.layout.activity_main);
+                    setContentView(R.layout.game_layout);
                     gameFrame = ((ViewGroup) findViewById(R.id.gameFrame));
                     gameFrame.removeAllViews();
                     gameScreen = new RopeSurfaceView(appContext);
                     game = new Rope(appContext, gameScreen);
-                    game.addEventListener(GameEvent.GAME_OVER, new Fireable()
+                    game.addEventListener(GameEventConstants.GAME_OVER, new Runnable()
                     {
                         @Override
-                        public void fire()
+                        public void run()
                         {
                             int score = game.score;
                             SharedPreferences pref = getPreferences(Context.MODE_PRIVATE);
@@ -85,7 +86,7 @@ public class MainActivity extends Activity
                         }
                     });
                     gameFrame.addView(gameScreen);
-                    game.launch();
+                    game.startGame();
                 }
                 return true;
                 /*
@@ -100,20 +101,57 @@ public class MainActivity extends Activity
     @Override
     protected void onStart() {
         super.onStart();
+        print("START");
     }
 
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
+        print("RESTORE INSTANCE STATE");
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        print("RESUME");
+        if (game != null && game.isActive() && !game.isPlaying())
+        {
+            // Don't unpause the game just yet, but we would like to paint one frame behind the pause menu_layout
+            //game.unpauseGame();
+
+            print("Painting a single frame.");
+            game.paintOneFrame();
+        }
     }
 
     @Override
     protected void onPause() {
+        print("PAUSE");
+        if (game != null && game.isActive())
+        {
+            game.pauseGame();
+            (findViewById(R.id.pauseMenu)).setVisibility(View.VISIBLE);
+        }
         super.onPause();
+    }
+
+    public void continueGame(View view)
+    {
+        game.unpauseGame();
+        (findViewById(R.id.pauseMenu)).setVisibility(View.INVISIBLE);
+    }
+
+    @Override
+    protected void onStop()
+    {
+        print("STOP: " + Thread.currentThread().getName());
+        super.onStop();
+    }
+
+    @Override
+    protected void onRestart()
+    {
+        super.onRestart();
+        print("RESTART");
     }
 
     @Override

@@ -11,6 +11,10 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+
 /**
  * Created by Joseph on 10/23/2017.
  *
@@ -38,8 +42,12 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
 
     // Control
     private volatile boolean stopped = false;
-    private volatile boolean updateThreadNoMoreWork = false;
-    private volatile boolean frameThreadNoMoreWork = false;
+    private volatile boolean updateThreadStopped = false;
+    private volatile boolean frameThreadStopped = false;
+    private volatile boolean paused = false;
+    private volatile boolean frameThreadPaused = false;
+    private volatile boolean updateThreadPaused = false;
+    private volatile boolean oneFrameThenPause = false;
 
     // Threads
     private Thread gameUpdateThread;
@@ -49,28 +57,31 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
     private volatile boolean viewHasDimension = false;
 
     // Monitors
-    private Integer updateAndFrameAndInputMonitor = new Integer(1);
-    private Integer endGameMonitor = new Integer(2);
+    private final Integer updateAndFrameAndInputMonitor = new Integer(1);
+    private CountDownLatch pauseLatch;
 
     // Objs
     private Choreographer vsync;
     protected Rand random;
     protected Vibrator rumble;
+    private List<Entity> entityList;
 
     // Etc
     public volatile int score;
 
-    public AbstractGameEngine(Context appContext, AbstractGameSurfaceView screen, int targetUPS) //target ups should divide evenly into 1000000000, updates are accurately caleld to within about 10ms
+    public AbstractGameEngine(Context appContext, int targetUPS, AbstractGameSurfaceView screen) //target ups should divide evenly into 1000000000, updates are accurately caleld to within about 10ms
     {
         this.appContext = appContext;
 
         Display display = ((WindowManager) appContext.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
         this.refreshRate = display.getRefreshRate();
+        // TODO: for display fine grain, use getAppVsyncOffsetNanos() https://developer.android.com/reference/android/view/Display.html#getAppVsyncOffsetNanos()
 
         this.targetUPS = targetUPS;
         this.expectedUpdateTimeNS = 1000000000 / this.targetUPS;
         this.totalUpdateTimeNS = expectedUpdateTimeNS;
 
+        entityList = new ArrayList<>();
         random = new Rand();
         rumble = (Vibrator) appContext.getSystemService(Context.VIBRATOR_SERVICE);
 
@@ -94,15 +105,15 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
 
         gameScreen = screen;
         gameScreen.giveDataReference(this);
-        gameScreen.setDimensionListener(new AbstractGameSurfaceView.DimensionListener()
+        gameScreen.setDimensionListener(new Runnable()
         {
             @Override
-            public void onDimensionGiven()
+            public void run()
             {
                 viewHasDimension = true;
                 if (wantToLaunch)
                 {
-                    start();
+                    launch();
                 }
             }
         });
@@ -111,47 +122,60 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
             @Override
             public boolean onTouch(View v, MotionEvent event)
             {
-                if (started && !stopped)
+                // Only use touch event if not paused TODO: maybe change this behavior? the idea is that pause menu handled by ui thread, bad idea?
+                if (isPlaying())
                 {
                     synchronized (updateAndFrameAndInputMonitor)
                     {
                         onTouchEvent(event);
                         return true;
                     }
-                }
+                } //TODO: join() this thread in stop, and for pause make this part of countdown latch, and wait this thread to make sure that it is done before pause happens? likely not necessary... simply have the child not do stuff with inputs after it ends the game, and the occasional input after a puase makes no diff
+                // TODO: and its not even a thread, usually just hijacks off main...
+                // TODO: so make sure its only called from main thread? possibly needed?
                 return false;
             }
         });
     }
 
-    public void launch()
+    public void startGame()
     {
         wantToLaunch = true;
         if (viewHasDimension)
         {
-            start();
+            launch();
         }
     }
 
-    private void start()
+    private void launch()
     {
+        wantToLaunch = false;
         if (started)
         {
+            // May not start a game that is already started
             throw new IllegalStateException("Game already started!");
         }
         else
         {
             started = true;
+
+            // At this point, the surfaceView (and thus the game) has dimensions, so we can do initialization based on them.
             initialize();
-            //We will launch two threads.
-            //1) Do game logic
-            //2) Update surface view
-            //The surface will paint more often than the game will update, so it will use interpolation
+
+            // We will launch two threads.
+            // 1) Do game logic
+            // 2) Update surface view
+
             gameUpdateThread.start();
             viewPaintThread.start();
         }
     }
 
+    /**
+     * Called once before updates and frames begin.
+     * In this call, we are guaranteed that the surfaceViiew (and the game) has dimensions
+     * So do any initialization that involves getGameWidth/getGameHeight.
+     */
     protected abstract void initialize(); //Always called once before update() calls first begin
 
     private void runGame()
@@ -162,11 +186,33 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
             synchronized (updateAndFrameAndInputMonitor)
             {
                 //Log.d("Gonna update", "now, set lastupdatetime to: " + lastUpdateTimeNS);
+                // Save for interpolation
+                for (Entity entity : entityList)
+                {
+                    entity.saveOldPosition();
+                }
                 update(); //Run frame code
                 long currentTimeNS = System.nanoTime();
                 actualUpdateTimeNS = currentTimeNS - lastUpdateTimeNS;
                 lastUpdateTimeNS = currentTimeNS;
                 //Log.d("UPDATE",actualUpdateTimeNS+"");
+                while (paused)
+                {
+                    try
+                    {
+                        if (!updateThreadPaused)
+                        {
+                            pauseLatch.countDown();
+                        }
+                        updateThreadPaused = true;
+                        updateAndFrameAndInputMonitor.wait();
+                    }
+                    catch (InterruptedException e)
+                    {
+                        e.printStackTrace();
+                    }
+                }
+                updateThreadPaused = false;
             }
             long endTime = System.nanoTime();
             totalUpdateTimeNS = endTime - startTime;
@@ -188,22 +234,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
                 e.printStackTrace();
             }
         }
-        synchronized (endGameMonitor)
-        {
-            updateThreadNoMoreWork = true;
-            if (frameThreadNoMoreWork)
-            {
-                Handler handler = new Handler(appContext.getMainLooper());
-                handler.post(new Runnable()
-                {
-                    @Override
-                    public void run()
-                    {
-                        cleanup();
-                    }
-                });
-            }
-        }
+        updateThreadStopped = true;
     }
 
     private void runGraphics()
@@ -229,9 +260,29 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
                         return; //Drop frame
                     }*/
 
+                    while (paused)
+                    {
+                        try
+                        {
+                            if (!frameThreadPaused)
+                            {
+                                pauseLatch.countDown();
+                            }
+                            frameThreadPaused = true;
+                            updateAndFrameAndInputMonitor.wait();
+                        }
+                        catch (InterruptedException e)
+                        {
+                            e.printStackTrace();
+                        }
+                    }
+                    frameThreadPaused = false;
+
+                    boolean framePainted = false;
                     if (gameScreen.canVisualize())
                     {
                         gameScreen.prepareVisualize();
+                        framePainted = true;
                         double ratio = ((double) (System.nanoTime() - lastUpdateTimeNS)) / expectedUpdateTimeNS; //TODO: perhaps each entity should calculate ration based on when it is drawn? This may improve interpolation for a scene with many objects.
                         //Log.d("RATIO", ratio+"");
                         //Log.d("Gonna frame", "now, read lastupdatetime as: " + lastUpdateTimeNS);
@@ -240,49 +291,142 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
                         gameScreen.visualize(ratio);
                     }
 
+                    // We only painted if we could visualize in the first place
+                    if (oneFrameThenPause && framePainted)
+                    {
+                        oneFrameThenPause = false;
+                        pauseGame();
+                    }
+
                     vsync.postFrameCallback(this); //Must ask for new callback each frame!
                 }
             }
         };
         vsync.postFrameCallback(callback);
         Looper.loop();
-        synchronized (endGameMonitor)
+        frameThreadStopped = true;
+    }
+
+
+    /**
+     * Stop update and frame threads.
+     * After the threads finish their current loop execution,
+     * The game will then call the subclasses cleanup and then cleanup itself.
+     */
+    public void stopGame()
+    {
+        if (!Thread.currentThread().getName().equals("main"))
         {
-            frameThreadNoMoreWork = true;
-            if (updateThreadNoMoreWork)
+            Log.w("T", "Was not called from the main thread, instead from: " + Thread.currentThread().getName() + ". Will be run from the Main thread instead.");
+        }
+
+        stopped = true; //TODO: synchronize this?
+
+        Handler mainHandler = new Handler(appContext.getMainLooper());
+        mainHandler.post(new Runnable()
+        {
+            @Override
+            public void run()
             {
-                Handler handler = new Handler(appContext.getMainLooper());
-                handler.post(new Runnable()
+                try
                 {
-                    @Override
-                    public void run()
-                    {
-                        cleanup();
-                    }
-                });
+                    gameUpdateThread.join();
+                    viewPaintThread.join();
+                }
+                catch (InterruptedException e)
+                {
+                    e.printStackTrace();
+                }
+                finally
+                {
+                    cleanup();
+                    internalCleanup();
+                    dispatchEvent(GameEventConstants.GAME_OVER);
+                }
             }
+        });
+    }
+
+    /**
+     * Cleanup and garbage collect here, which will run before the superclass cleans.
+     */
+    protected abstract void cleanup();
+
+    /**
+     * Pause the threads
+     */
+    public void pauseGame(/*final Runnable callback*/)
+    {
+        if (Thread.currentThread().equals(gameUpdateThread) || Thread.currentThread().equals(viewPaintThread))
+        {
+            paused = true;
+            return;
+        }
+        if (!isActive())
+        {
+            Log.w("F", "No need to pause game that isn't running.");
+            return;
+        }/*
+        Handler handler = new Handler(appContext.getMainLooper());
+        handler.post(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                Log.d("M", Thread.currentThread().getName());
+                paused = true; //Tell threads to pause
+                Log.d("M", "Abstract Game Engine attempt to pause threads.");
+                while (!frameThreadPaused && !updateThreadPaused);
+                Log.d("M", "Abstract Game Engine sees threads paused.");
+            }
+        });*/
+
+        // 1 frame thread + 1 update thread = 2
+        pauseLatch = new CountDownLatch(2);
+
+        // Tell threads to stop
+        paused = true;
+
+        try
+        {
+            pauseLatch.await();
+        }
+        catch (InterruptedException e)
+        {
+            e.printStackTrace();
         }
     }
 
-    public boolean isRunning()
+    public void unpauseGame()
     {
-        return started && !stopped;
+        if (!isActive())
+        {
+            Log.w("F", "Cannot unpause game that isn't active.");
+            return;
+        }
+        Log.d("G", "Unpausing game");
+        paused = false;
+        synchronized (updateAndFrameAndInputMonitor)
+        {
+            updateAndFrameAndInputMonitor.notifyAll();
+        }
     }
-
-    protected abstract void update();
 
     /**
-     * Tell threads to stop
+     * When the app resumes and the game is paused, the surface view will have cleared.
+     * Use this function to paint a single new frame onto the view if you are not unpausing right away.
      */
-    public void endGame()
+    public void paintOneFrame()
     {
-        stopped = true;
+        oneFrameThenPause = true;
+        unpauseGame();
     }
+
 
     /**
      * Now that the threads have stopped, clean up
      */
-    protected void cleanup()
+    private void internalCleanup()
     {
         Log.d("h", "CLEANUP");
         vsync = null;
@@ -290,9 +434,102 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
         rumble = null;
         gameUpdateThread = null;
         viewPaintThread = null;
-
+        entityList.clear();
+        entityList = null;
         //Cleanup gameScreen
     }
+
+    public boolean isActive()
+    {
+        return started && !stopped;
+    }
+
+    public boolean isPlaying()
+    {
+        return isActive() && !paused;
+    }
+
+    protected abstract void update();
+
+    /**
+     * Tracks an entity for interpolation purposes and returns it
+     */
+    protected <T extends Entity> T track(T entityKind)
+    {
+        entityList.add(entityKind);
+        return entityKind;
+    }
+
+    /**
+     * Black magic or utter genius?
+     * Perhaps add overloaded constructor for Entity itself that does not require you to pass Entity.class?
+     */
+    /*
+    protected <T extends Entity> T createEntity(Class<T> type, Object... args)
+    {
+        T creation = null;
+
+        // Find the desired constructor by analysing the args that were passed
+        Constructor[] constructors = type.getDeclaredConstructors();
+        Constructor matchedConstructor = null;
+        for (Constructor constructor : constructors)
+        {
+            boolean matchWorks = true;
+            Class[] conArgTypes = constructor.getParameterTypes();
+            if (args.length != conArgTypes.length)
+            {
+                matchWorks = false;
+                Log.d("A", "Wrong length");
+            }
+            else
+            {
+                for (int i = 0; i < args.length; i++)
+                {
+                    Class argType = args[i].getClass();
+                    Class conArgType = conArgTypes[i];
+
+                    if (argType.isPrimitive() && conArgType.isPrimitive()) //This check does not work on wrapper classes. Needs a fix!
+                    {
+                        Log.d("A", "Both primitive");
+                    }
+                    else if (!(conArgType.isAssignableFrom(argType)))
+                    {
+                        matchWorks = false;
+                        Log.d("A", "Arg mismatch. constructor wanted: " + conArgType + ". arg supplied: " + argType);
+                        break;
+                    }
+                }
+            }
+            if (matchWorks)
+            {
+                matchedConstructor = constructor;
+            }
+        }
+        if (matchedConstructor == null)
+        {
+            throw new IllegalArgumentException("No constructor found matching the supplied arguments.");
+        }
+
+        try
+        {
+            Log.d("h", "Class exists" + type.getDeclaredConstructors()[0].toString());
+            creation = type.cast(matchedConstructor.newInstance(args));
+            entityList.add(creation);
+        }
+        catch (InstantiationException e)
+        {
+            e.printStackTrace();
+        }
+        catch (IllegalAccessException e)
+        {
+            e.printStackTrace();
+        }
+        catch (InvocationTargetException e)
+        {
+            e.printStackTrace();
+        }
+        return creation;
+    }*/
 
     public int getGameWidth()
     {

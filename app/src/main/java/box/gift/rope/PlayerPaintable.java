@@ -28,14 +28,12 @@ public class PlayerPaintable extends AbstractPaintable
     protected void blueprintPaint(int width, int height, Canvas canvas)
     {
         paint.setColor(Color.BLACK);
-        canvas.save();
-        canvas.rotate(degrees, width / 2, height / 2);
+        //canvas.rotate(degrees, width / 2, height / 2);
         int x = 0;
         int y = 0;
         int w = width;
         int h = height;
         canvas.drawRect(x, y, x + w, y + h, paint);
-        canvas.restore();
         degrees = (degrees + 1) % 360;
     }
 }

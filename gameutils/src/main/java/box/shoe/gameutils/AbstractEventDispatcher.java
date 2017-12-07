@@ -11,24 +11,24 @@ import java.util.Map;
 
 public abstract class AbstractEventDispatcher
 {
-    private Map<String, List<Fireable>> listeners;
+    private Map<String, List<Runnable>> listeners;
 
     public AbstractEventDispatcher()
     {
         listeners = new HashMap<>();
     }
 
-    public void addEventListener(String eventType, Fireable fireable)
+    public void addEventListener(String eventType, Runnable runnable)
     {
         if (listeners.containsKey(eventType))
         {
-            listeners.get(eventType).add(fireable);
+            listeners.get(eventType).add(runnable);
         }
         else
         {
-            List<Fireable> fireables = new ArrayList<>(); //Perhaps change to linkedlist if removal is implemented?
-            fireables.add(fireable);
-            listeners.put(eventType, fireables);
+            List<Runnable> runnables = new ArrayList<>(); //Perhaps change to LinkedList if removal is implemented?
+            runnables.add(runnable);
+            listeners.put(eventType, runnables);
         }
     }
 
@@ -40,10 +40,10 @@ public abstract class AbstractEventDispatcher
     {
         if (listeners.containsKey(eventType))
         {
-            List<Fireable> fireables = listeners.get(eventType);
-            for (Fireable fireable : fireables)
+            List<Runnable> runnables = listeners.get(eventType);
+            for (Runnable runnable : runnables)
             {
-                fireable.fire();
+                runnable.run();
             }
         }
     }

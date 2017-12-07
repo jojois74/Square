@@ -19,7 +19,7 @@ public class GameTasker
         tasks = new HashSet<>();
     }
 
-    public void register(int ms, int repetitions, Fireable schedulable) //0 for repetions means eternal, ms accurate to within about 10ms if tick() is called on an AbstractGameEngine update
+    public void register(int ms, int repetitions, Runnable schedulable) //0 for repetions means eternal, ms accurate to within about 10ms if tick() is called on an AbstractGameEngine update
     {
         tasks.add(new Task((int) (UPMS * ms), repetitions, schedulable));
     }
@@ -46,9 +46,9 @@ public class GameTasker
         private int currentFrame;
         private int maxRepetitions;
         private int currentRepetition;
-        private Fireable schedulable;
+        private Runnable schedulable;
 
-        private Task(int maxFrames, int repetitions, Fireable schedulable)
+        private Task(int maxFrames, int repetitions, Runnable schedulable)
         {
             currentFrame = 0;
             this.maxFrames = maxFrames;
@@ -67,7 +67,7 @@ public class GameTasker
             if (currentFrame >= maxFrames) //If we have exhausted the delay
             {
                 currentFrame = 0;
-                schedulable.fire();
+                schedulable.run();
 
                 if (maxRepetitions == 0)
                     return false; //Eternally repeat
