@@ -1,1 +1,1 @@
-include ':app', ':gameutils'
+include ':app', ':gameutils', ':cloning'

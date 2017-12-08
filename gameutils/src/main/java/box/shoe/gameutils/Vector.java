@@ -7,7 +7,7 @@ package box.shoe.gameutils;
  * This class is IMMUTABLE.
  */
 
-public class Vector
+public final class Vector
 {
     private final double x;
     private final double y;

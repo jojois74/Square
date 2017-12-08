@@ -4,13 +4,16 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.util.Log;
 
 import java.math.BigDecimal;
 import java.util.LinkedList;
+import java.util.List;
 
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
 import box.shoe.gameutils.Entity;
+import box.shoe.gameutils.GameState;
 
 import static android.R.attr.width;
 
@@ -26,27 +29,31 @@ public class RopeSurfaceView extends AbstractGameSurfaceView
     }
 
     @Override
-    protected void paint(Canvas canvas, AbstractGameEngine abstractData, double interpolationRatio)
+    protected void paint(Canvas canvas, GameState interpolatedState)
     {
-        Rope data = (Rope) abstractData;
+        Player player = interpolatedState.getData("player"); //TODO: replace strings with constants
+        LinkedList<Entity> walls = interpolatedState.getData("walls");
+
+        //TODO: paint from interpolated states, change entities to be nice (already sorta done).
 
         // Background
         canvas.drawColor(Color.WHITE);
 
         // Player
-        data.player.paint(canvas, interpolationRatio);
+        if (player != null)
+            player.paint(canvas);
 
+/*
         // Particle
         if (data.effect != null)
             data.effect.paint(canvas, interpolationRatio);
-
+*/
         // Walls
-        LinkedList<Entity> walls = data.walls;
         for (Entity wall : walls)
         {
-            wall.paint(canvas, interpolationRatio);
+            wall.paint(canvas);
         }
-
+/*
         // Coins
         LinkedList<Entity> coins = data.coins;
         for (Entity coin : coins)
@@ -63,6 +70,6 @@ public class RopeSurfaceView extends AbstractGameSurfaceView
         // Score
         paint.setTextSize(50);
         paint.setColor(Color.BLUE);
-        canvas.drawText("Score: " + String.valueOf(data.score), 40, 90, paint);
+        canvas.drawText("Score: " + String.valueOf(data.score), 40, 90, paint);*/
     }
 }

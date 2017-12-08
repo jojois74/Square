@@ -12,7 +12,7 @@ import java.util.ArrayList;
  */
 
 public class ParticleEffect
-{
+{/*
     private Entity emitter;
     private int num;
 
@@ -74,5 +74,5 @@ public class ParticleEffect
                 particle.setVelocity(new Vector(particle.getVelocity().getX() * .7, particle.getVelocity().getY()));
             }
         }
-    }
+    }*/
 }

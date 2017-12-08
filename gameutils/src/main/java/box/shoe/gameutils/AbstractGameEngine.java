@@ -1,9 +1,12 @@
 package box.shoe.gameutils;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Vibrator;
+import android.support.annotation.MainThread;
 import android.util.Log;
 import android.view.Choreographer;
 import android.view.Display;
@@ -11,8 +14,14 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -27,7 +36,7 @@ import java.util.concurrent.CountDownLatch;
  * This is because we interpolate between the previous update and the latest update
  */
 
-public abstract class AbstractGameEngine extends AbstractEventDispatcher
+public abstract class AbstractGameEngine extends AbstractEventDispatcher implements Cleanable
 {
     private double refreshRate; //The times per second that the screen can redraw (hardware specific)
     private int targetUPS;
@@ -64,10 +73,11 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
     private Choreographer vsync;
     protected Rand random;
     protected Vibrator rumble;
-    private List<Entity> entityList;
+    private List<GameState> gameStates; // We want to use it like a queue, but we need to access the first two elements, so it cannot be one
 
     // Etc
     public volatile int score;
+    private long vsyncOffsetNanos = 0; // Default of 0 if not high enough API to get he real value
 
     public AbstractGameEngine(Context appContext, int targetUPS, AbstractGameSurfaceView screen) //target ups should divide evenly into 1000000000, updates are accurately caleld to within about 10ms
     {
@@ -75,13 +85,16 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
 
         Display display = ((WindowManager) appContext.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
         this.refreshRate = display.getRefreshRate();
-        // TODO: for display fine grain, use getAppVsyncOffsetNanos() https://developer.android.com/reference/android/view/Display.html#getAppVsyncOffsetNanos()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+        {
+            vsyncOffsetNanos = display.getAppVsyncOffsetNanos();
+        }
 
         this.targetUPS = targetUPS;
         this.expectedUpdateTimeNS = 1000000000 / this.targetUPS;
         this.totalUpdateTimeNS = expectedUpdateTimeNS;
 
-        entityList = new ArrayList<>();
+        gameStates = new LinkedList<>();
         random = new Rand();
         rumble = (Vibrator) appContext.getSystemService(Context.VIBRATOR_SERVICE);
 
@@ -90,7 +103,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
             @Override
             public void run()
             {
-                runGame();
+                runUpdates();
             }
         }, "Game Update Thread");
 
@@ -99,12 +112,11 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
             @Override
             public void run()
             {
-                runGraphics();
+                runFrames();
             }
         }, "View Paint Thread");
 
         gameScreen = screen;
-        gameScreen.giveDataReference(this);
         gameScreen.setDimensionListener(new Runnable()
         {
             @Override
@@ -178,7 +190,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
      */
     protected abstract void initialize(); //Always called once before update() calls first begin
 
-    private void runGame()
+    private void runUpdates()
     {
         while (!stopped)
         {
@@ -186,16 +198,21 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
             synchronized (updateAndFrameAndInputMonitor)
             {
                 //Log.d("Gonna update", "now, set lastupdatetime to: " + lastUpdateTimeNS);
-                // Save for interpolation
-                for (Entity entity : entityList)
-                {
-                    entity.saveOldPosition();
-                }
-                update(); //Run frame code
+                // Run frame code
+                update();
+
+                // Save game state
+                GameState gameState = new GameState();
+                gameStates.add(gameState);
+                saveGameState(gameState);
+
                 long currentTimeNS = System.nanoTime();
                 actualUpdateTimeNS = currentTimeNS - lastUpdateTimeNS;
                 lastUpdateTimeNS = currentTimeNS;
                 //Log.d("UPDATE",actualUpdateTimeNS+"");
+
+                gameState.timeStamp = currentTimeNS; //TODO: or should this be after pause? Does it matter?
+
                 while (paused)
                 {
                     try
@@ -237,7 +254,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
         updateThreadStopped = true;
     }
 
-    private void runGraphics()
+    private void runFrames() //TODO: consume gameStates when they are used up (not necessarily when new one is produced!)
     {
         Looper.prepare();
         vsync = Choreographer.getInstance();
@@ -247,10 +264,27 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
             @Override
             public void doFrame(long frameTimeNanos)
             {
+                // Must ask for new callback each frame!
+                // We ask at the start because the Choreographer automatically
+                // skips frames for us if we don't draw fast enough,
+                // and it will make a Log.i to let us know that it skipped frames (so we know)
+                // If we move it to the end we essentially manually skip frames,
+                // but we won't know that an issue occurred.
+                vsync.postFrameCallback(this);
+
+                // Correct for minor difference in vsync time.
+                // This is probably totally unnecessary.
+                frameTimeNanos -= vsyncOffsetNanos;
+
                 synchronized (updateAndFrameAndInputMonitor)
                 {
+                    // Stop game if prompted
                     if (stopped)
                     {
+                        // Since we asked for the callback up above,
+                        // we should remove it if we plan on quiting
+                        // so we do not do an extra callback.
+                        vsync.removeFrameCallback(this);
                         Looper.myLooper().quit();
                         return;
                     }
@@ -260,16 +294,20 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
                         return; //Drop frame
                     }*/
 
-                    while (paused)
+                    // Pause game
+                    // Spin lock when we want to pause
+                    while (paused && !oneFrameThenPause)
                     {
                         try
                         {
+                            // Do not count down the latch off spurious wakeup!
                             if (!frameThreadPaused)
                             {
                                 pauseLatch.countDown();
                             }
                             frameThreadPaused = true;
                             updateAndFrameAndInputMonitor.wait();
+                            Log.d("WOKEN", "WOKEN");
                         }
                         catch (InterruptedException e)
                         {
@@ -278,27 +316,134 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
                     }
                     frameThreadPaused = false;
 
-                    boolean framePainted = false;
+                    boolean paintedFrame = false;
+
+                    // Paint frame
                     if (gameScreen.canVisualize())
                     {
-                        gameScreen.prepareVisualize();
-                        framePainted = true;
-                        double ratio = ((double) (System.nanoTime() - lastUpdateTimeNS)) / expectedUpdateTimeNS; //TODO: perhaps each entity should calculate ration based on when it is drawn? This may improve interpolation for a scene with many objects.
+                        paintedFrame = true;
+                        //double ratio = ((double) (frameTimeNanos - lastUpdateTimeNS)) / expectedUpdateTimeNS; //TODO: perhaps each entity should calculate ration based on when it is drawn? This may improve interpolation for a scene with many objects.
                         //Log.d("RATIO", ratio+"");
                         //Log.d("Gonna frame", "now, read lastupdatetime as: " + lastUpdateTimeNS);
-                        if (ratio < 0) ratio = 0;
-                        if (ratio > 1) ratio = 1;
-                        gameScreen.visualize(ratio);
+                        //if (ratio < 0) ratio = 0;
+                        //if (ratio > 1) ratio = 1;
+
+                        GameState oldState;
+                        GameState newState;
+
+                        boolean foundCorrectStates = false;
+
+                        while (!foundCorrectStates)
+                        {
+                            //TODO: instead of passing ratio, construct game state as interpolation between two of the saved ones, and visualize that
+                            if (gameStates.size() >= 2) // We need two states to draw (interpolate between them)
+                            {
+                                oldState = gameStates.get(0);
+                                newState = gameStates.get(1);
+
+                                // Time that passed between the game states in question.
+                                long timeBetween = newState.timeStamp - oldState.timeStamp;
+
+                                // Interpolate based on time that has past since the second active game state
+                                // as a fraction of the time between the two active states.
+                                double interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) timeBetween);
+
+                                // If we are up to the new update, remove the old one as it is not needed.
+                                if (interpolationRatio > 1)
+                                {
+                                    gameStates.remove(0);
+                                }
+                                else
+                                {
+                                    foundCorrectStates = true;
+
+                                    // Construct game state based on interpolation between the two active ones
+                                    GameState interpolatedState = new GameState();
+
+                                    Set<Map.Entry<String, Object>> oldStateEntrySey = oldState.dataEntrySet();
+
+                                    for (Map.Entry<String, Object> oldEntry : oldStateEntrySey)
+                                    {
+                                        // If this entry is common to both sets
+                                        if (newState.getDataMap().containsKey(oldEntry.getKey()))
+                                        {
+                                            boolean interpolatedEntity = false;
+                                            Object oldValue = oldEntry.getValue();
+                                            Object newValue = newState.getDataMap().get(oldEntry.getKey());
+                                            // If they are Entities
+                                            if (oldValue instanceof Entity && newValue instanceof Entity)
+                                            {
+                                                Entity oldEntity = (Entity) oldValue;
+                                                Entity newEntity = (Entity) newValue;
+
+                                                if (oldEntity.usesInterpolation() && newEntity.usesInterpolation())
+                                                {
+                                                    interpolatedEntity = true;
+
+                                                    double interpolatedX = ((newEntity.getX() - oldEntity.getX()) * interpolationRatio) + oldEntity.getX();
+                                                    double interpolatedY = ((newEntity.getY() - oldEntity.getY()) * interpolationRatio) + oldEntity.getY();
+
+                                            /*
+                                            // Interpolate X, Y of entity
+                                            Entity interpolatedEntity = null;//new Entity(newEntity); // Use the newEntity as a template
+                                            try
+                                            {
+                                                interpolatedEntity = newEntity.getClass().getConstructor(Entity.class).newInstance(newEntity);
+                                            } catch (InstantiationException e)
+                                            {
+                                                e.printStackTrace();
+                                            } catch (IllegalAccessException e)
+                                            {
+                                                e.printStackTrace();
+                                            } catch (InvocationTargetException e)
+                                            {
+                                                e.printStackTrace();
+                                            } catch (NoSuchMethodException e)
+                                            {
+                                                e.printStackTrace();
+                                            }
+                                            interpolatedEntity.setX(interpolatedX);
+                                            interpolatedEntity.setY(interpolatedY);
+                                            interpolatedState.saveEntity(oldEntry.getKey(), interpolatedEntity, false);*/
+
+                                                    newEntity.setPaintX(interpolatedX);
+                                                    newEntity.setPaintY(interpolatedY);
+
+                                                    interpolatedState.saveData(oldEntry.getKey(), newEntity); // Reuse the newEntity
+                                                }
+                                            }
+                                            if (!interpolatedEntity)
+                                            {
+                                                interpolatedState.saveData(oldEntry.getKey(), newValue);
+                                            }
+                                        }
+                                    }
+
+                                    gameScreen.prepareVisualize(); //TODO: move this to better more opportune place which is earlier for preperation
+                                    gameScreen.visualize(interpolatedState);
+                                }
+                            }/*
+                            else if (gameStates.size() >= 1)
+                            {
+                                foundCorrectStates = true; // Just to end the loop TODO: make this more descriptive of intent
+                                gameScreen.prepareVisualize();
+                                gameScreen.visualize(gameStates.get(0));
+                                Log.w("T", "We want to draw but there aren't enough new updates! Using what we have to give update picture.");
+                            }*/
+                            else
+                            {
+                                foundCorrectStates = true; // Just to end the loop TODO: make this more descriptive of intent
+                                Log.w("T", "We want to draw but there aren't enough new updates!");
+                            }
+                        }
+
+                        //gameScreen.visualize(ratio);
                     }
 
-                    // We only painted if we could visualize in the first place
-                    if (oneFrameThenPause && framePainted)
+                    if (paintedFrame)
                     {
                         oneFrameThenPause = false;
-                        pauseGame();
                     }
-
-                    vsync.postFrameCallback(this); //Must ask for new callback each frame!
                 }
             }
         };
@@ -311,7 +456,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
     /**
      * Stop update and frame threads.
      * After the threads finish their current loop execution,
-     * The game will then call the subclasses cleanup and then cleanup itself.
+     * The game will then call the subclasses cleanup.
      */
     public void stopGame()
     {
@@ -340,7 +485,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
                 finally
                 {
                     cleanup();
-                    internalCleanup();
                     dispatchEvent(GameEventConstants.GAME_OVER);
                 }
             }
@@ -350,12 +494,31 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
     /**
      * Cleanup and garbage collect here, which will run before the superclass cleans.
      */
-    protected abstract void cleanup();
+    @SuppressLint("MissingSuperCall") //Because this is the top level implementor
+    public void cleanup()
+    {
+        Log.d("h", "CLEANUP");
+        vsync = null;
+        random = null;
+        rumble = null;
+        gameUpdateThread = null;
+        viewPaintThread = null;
+
+        //Cleanup gameScreen TODO: more
+        gameScreen.setOnTouchListener(new View.OnTouchListener()
+        {
+            @Override
+            public boolean onTouch(View v, MotionEvent event)
+            {
+                return false;
+            }
+        });
+    }
 
     /**
      * Pause the threads
      */
-    public void pauseGame(/*final Runnable callback*/)
+    public void pauseGame() //TODO: should only be called from main thread?
     {
         if (Thread.currentThread().equals(gameUpdateThread) || Thread.currentThread().equals(viewPaintThread))
         {
@@ -418,25 +581,21 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
      */
     public void paintOneFrame()
     {
-        oneFrameThenPause = true;
-        unpauseGame();
-    }
+        synchronized (updateAndFrameAndInputMonitor)
+        {
+            if (isPlaying())
+            {
+                throw new IllegalStateException("Game must be paused first!");
+            }
 
+            // Set the flag which allows the frame thread to escape from pause for one frame
+            oneFrameThenPause = true;
 
-    /**
-     * Now that the threads have stopped, clean up
-     */
-    private void internalCleanup()
-    {
-        Log.d("h", "CLEANUP");
-        vsync = null;
-        random = null;
-        rumble = null;
-        gameUpdateThread = null;
-        viewPaintThread = null;
-        entityList.clear();
-        entityList = null;
-        //Cleanup gameScreen
+            // Wakeup the frame thread.
+            // We use notify all to make sure the frame thread gets woken.
+            // The update thread will immediately wait() because the game is still paused.
+            updateAndFrameAndInputMonitor.notifyAll();
+        }
     }
 
     public boolean isActive()
@@ -451,14 +610,18 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher
 
     protected abstract void update();
 
+    protected abstract void saveGameState(GameState gameState);
+
     /**
      * Tracks an entity for interpolation purposes and returns it
+     * TODO: remove this and replace with game states (a little easier to deal with, but not much
      */
+    /*
     protected <T extends Entity> T track(T entityKind)
     {
         entityList.add(entityKind);
         return entityKind;
-    }
+    }*/
 
     /**
      * Black magic or utter genius?

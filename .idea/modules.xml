@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Rope.iml" filepath="$PROJECT_DIR$/Rope.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/cloning/cloning.iml" filepath="$PROJECT_DIR$/cloning/cloning.iml" />
       <module fileurl="file://$PROJECT_DIR$/gameutils/gameutils.iml" filepath="$PROJECT_DIR$/gameutils/gameutils.iml" />
     </modules>
   </component>

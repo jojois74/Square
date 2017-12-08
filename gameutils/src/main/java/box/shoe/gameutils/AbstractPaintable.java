@@ -1,5 +1,6 @@
 package box.shoe.gameutils;
 
+import android.annotation.SuppressLint;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -27,7 +28,7 @@ import static android.R.attr.y;
  * The item is finally drawn with the registration point at the inputed coordinates
  */
 
-public abstract class AbstractPaintable
+public abstract class AbstractPaintable implements Cleanable
 {
     private int width;
     private int height;
@@ -58,7 +59,7 @@ public abstract class AbstractPaintable
         paintableCanvas = new Canvas(paintableBitmap);
     }
     protected AbstractPaintable() //If using this method, call to setDimensions must be done before attempting to paint
-    {//TODO disalow this constructor if not coming from an imagepaintable or subclass
+    {//TODO disallow this constructor if not coming from an imagepaintable or subclass
         this.paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     }
 
@@ -136,5 +137,14 @@ public abstract class AbstractPaintable
     public int getHeight()
     {
         return height;
+    }
+
+    @SuppressLint("MissingSuperCall")
+    public void cleanup()
+    {
+        registrationPoint = null;
+        paint = null;
+        paintableCanvas = null;
+        paintableBitmap = null;
     }
 }

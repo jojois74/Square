@@ -1,6 +1,8 @@
 package box.gift.rope;
 
 import android.content.Context;
+import android.graphics.Point;
+import android.util.Log;
 import android.view.MotionEvent;
 
 import java.util.Iterator;
@@ -10,6 +12,7 @@ import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
 import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.EntityCollisions;
+import box.shoe.gameutils.GameState;
 import box.shoe.gameutils.GameTasker;
 import box.shoe.gameutils.ParticleEffect;
 import box.shoe.gameutils.Rand;
@@ -49,7 +52,7 @@ public class Rope extends AbstractGameEngine
     protected void initialize()
     {
         //player = new Player(getGameWidth() / 6, getGameHeight() / 8, new PlayerPaintable(60, 60));
-        player = track(new Player(getGameWidth() / 6, getGameHeight() / 8, new PlayerPaintable(60, 60)));
+        player = new Player(getGameWidth() / 6, getGameHeight() / 8, new PlayerPaintable(60, 60));
         Runnable generateWallAndCoin = new Runnable()
         {
             @Override
@@ -61,15 +64,15 @@ public class Rope extends AbstractGameEngine
                 WallPaintable wp = new WallPaintable(wallWidth, third);
                 if (hole != 0)
                 {
-                    walls.add(track(new Entity(getGameWidth(), 0, wp)));
+                    walls.add(new Entity(getGameWidth(), 0, wp));
                 }
                 if (hole != 1)
                 {
-                    walls.add(track(new Entity(getGameWidth(), third, wp)));
+                    walls.add(new Entity(getGameWidth(), third, wp));
                 }
                 if (hole != 2)
                 {
-                    walls.add(track(new Entity(getGameWidth(), 2 * third, wp)));
+                    walls.add(new Entity(getGameWidth(), 2 * third, wp));
                 }
 
                 int rand = random.randomBetween(0, 3);
@@ -77,7 +80,7 @@ public class Rope extends AbstractGameEngine
                 int randHeight = random.randomBetween(margin, getGameHeight() - margin);
                 if (rand == 0)
                 {
-                    coins.add(track(new Entity(getGameWidth() * 1.3, randHeight, new CoinPaintable(80, 80))));
+                    coins.add(new Entity(getGameWidth() * 1.3, randHeight, new CoinPaintable(80, 80)));
                 }
             }
         };
@@ -139,6 +142,21 @@ public class Rope extends AbstractGameEngine
         }
     }
 
+    @Override
+    protected void saveGameState(GameState gameState)
+    {
+        gameState.saveData("player", new Player(player));
+
+        LinkedList<Entity> mWalls = new LinkedList<>();
+        for (Entity wall : walls)
+        {
+            Entity mWall = new Entity(wall);
+            mWalls.add(mWall);
+            gameState.saveData(String.valueOf(System.identityHashCode(wall)), mWall); //TODO: this way of ID each object is unreliable
+        }
+        gameState.saveData("walls", mWalls);
+    }
+
     private void playerDead()
     {
         MainActivity.print("DEAD");
@@ -147,7 +165,7 @@ public class Rope extends AbstractGameEngine
     }
 
     @Override
-    protected void cleanup()
+    public void cleanup()
     {
         MainActivity.print("Cleanup activate");
         player.cleanup();
@@ -156,6 +174,8 @@ public class Rope extends AbstractGameEngine
         //Cleanup scheduler TODO
         scheduler = null;
         //Cleanup walls TODO
+
+        super.cleanup();
     }
 
     @Override

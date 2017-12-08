@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
+import android.support.annotation.NonNull;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.SurfaceHolder;
@@ -20,7 +21,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
 {
     private SurfaceHolder holder;
     private volatile boolean surfaceReady = false;
-    private AbstractGameEngine abstractData = null;
+    //private AbstractGameEngine abstractData = null;
     private Runnable dimensionListener;
     public Paint paint;
     private boolean preparedToVisualize = false;
@@ -33,12 +34,12 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         holder = getHolder();
         holder.addCallback(this);
     }
-
+/*
     public void giveDataReference(AbstractGameEngine abstractData)
     {
         this.abstractData = abstractData;
     }
-
+*/
     public void prepareVisualize()
     {
         if (!surfaceReady)
@@ -50,7 +51,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         preparedToVisualize = true;
     }
 
-    public void visualize(double interpolationRatio)
+    public void visualize(@NonNull GameState interpolatedState /*double interpolationRatio*/)
     {
         if (!preparedToVisualize)
         {
@@ -59,17 +60,18 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         if (!surfaceReady)
         {
             throw new IllegalStateException("Surface is not ready to paint. Please call canVisualize() to check.");
-        }
+        }/*
         if (abstractData == null)
         {
             throw new IllegalStateException("Data has not been giving for painting. Please call giveDataReference(AbstractGameEngine) to supply it.");
-        }
-        paint(canvas, abstractData, interpolationRatio);
+        }*/
+        paint(canvas, interpolatedState);
         holder.unlockCanvasAndPost(canvas);
         preparedToVisualize = false;
     }
 
-    protected abstract void paint(Canvas canvas, AbstractGameEngine abstractData, double interpolationRatio);
+    //protected abstract void paint(Canvas canvas, AbstractGameEngine abstractData, double interpolationRatio);
+    protected abstract void paint(Canvas canvas, GameState interpolatedState);
 
     @Override
     public void surfaceCreated(SurfaceHolder holder)

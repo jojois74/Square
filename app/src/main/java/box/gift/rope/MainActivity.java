@@ -12,6 +12,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.TextView;
 
+import com.rits.cloning.Cloner;
+
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
 import box.shoe.gameutils.GameEventConstants;
@@ -126,7 +128,7 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     @Override
     protected void onPause() {
         print("PAUSE");
-        if (game != null && game.isActive())
+        if (game != null && game.isPlaying())
         {
             game.pauseGame();
             (findViewById(R.id.pauseMenu)).setVisibility(View.VISIBLE);

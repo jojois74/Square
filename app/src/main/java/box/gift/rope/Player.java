@@ -1,5 +1,7 @@
 package box.gift.rope;
 
+import android.util.Log;
+
 import box.shoe.gameutils.AbstractPaintable;
 import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.Vector;
@@ -15,5 +17,10 @@ public class Player extends Entity
     public Player(double initialX, double initialY, AbstractPaintable visual)
     {
         super(initialX, initialY, visual);
+    }
+
+    public Player(Entity toClone)
+    {
+        super(toClone);
     }
 }
