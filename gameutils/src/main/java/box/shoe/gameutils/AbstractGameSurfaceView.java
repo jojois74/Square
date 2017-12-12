@@ -40,6 +40,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         this.abstractData = abstractData;
     }
 */
+
     public void prepareVisualize()
     {
         if (!surfaceReady)
@@ -47,11 +48,10 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
             throw new IllegalStateException("Surface is not ready to paint. Please call canVisualize() to check.");
         }
         canvas = holder.lockCanvas(null); //TODO: lockHardwareCanvas? api 26?
-        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR); //Clear the canvas
         preparedToVisualize = true;
     }
 
-    public void visualize(@NonNull GameState interpolatedState /*double interpolationRatio*/)
+    public void visualize(@NonNull GameState interpolatedState)
     {
         if (!preparedToVisualize)
         {
@@ -65,6 +65,8 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         {
             throw new IllegalStateException("Data has not been giving for painting. Please call giveDataReference(AbstractGameEngine) to supply it.");
         }*/
+        // Clear the canvas
+        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
         paint(canvas, interpolatedState);
         holder.unlockCanvasAndPost(canvas);
         preparedToVisualize = false;
@@ -102,5 +104,10 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
     public boolean canVisualize()
     {
         return surfaceReady;
+    }
+
+    public boolean preparedToVisualize()
+    {
+        return preparedToVisualize;
     }
 }

@@ -18,10 +18,9 @@ public class PlayerPaintable extends AbstractPaintable
 {
     private int degrees = 45;
 
-    public PlayerPaintable(int width, int height)
+    public PlayerPaintable()
     {
-        super(width, height);
-        setRegistrationPoint(width, height / 2);
+        super(60, 60);
     }
 
     @Override

@@ -6,7 +6,6 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Vibrator;
-import android.support.annotation.MainThread;
 import android.util.Log;
 import android.view.Choreographer;
 import android.view.Display;
@@ -14,15 +13,13 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+
+import box.gift.gameutils.R;
 
 /**
  * Created by Joseph on 10/23/2017.
@@ -74,6 +71,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     protected Rand random;
     protected Vibrator rumble;
     private List<GameState> gameStates; // We want to use it like a queue, but we need to access the first two elements, so it cannot be one
+    private GameState lastVisualizedGameState;
 
     // Etc
     public volatile int score;
@@ -105,7 +103,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             {
                 runUpdates();
             }
-        }, "Game Update Thread");
+        }, appContext.getString(R.string.update_thread_name));
 
         viewPaintThread = new Thread(new Runnable()
         {
@@ -114,7 +112,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             {
                 runFrames();
             }
-        }, "View Paint Thread");
+        }, appContext.getString(R.string.frame_thread_name));
 
         gameScreen = screen;
         gameScreen.setDimensionListener(new Runnable()
@@ -197,21 +195,21 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             long startTime = System.nanoTime();
             synchronized (updateAndFrameAndInputMonitor)
             {
+                L.w("Update V", "thread");
                 //Log.d("Gonna update", "now, set lastupdatetime to: " + lastUpdateTimeNS);
                 // Run frame code
                 update();
 
                 // Save game state
                 GameState gameState = new GameState();
-                gameStates.add(gameState);
                 saveGameState(gameState);
+                gameState.timeStamp = startTime;
+                gameStates.add(gameState);
 
                 long currentTimeNS = System.nanoTime();
                 actualUpdateTimeNS = currentTimeNS - lastUpdateTimeNS;
                 lastUpdateTimeNS = currentTimeNS;
                 //Log.d("UPDATE",actualUpdateTimeNS+"");
-
-                gameState.timeStamp = currentTimeNS; //TODO: or should this be after pause? Does it matter?
 
                 while (paused)
                 {
@@ -230,12 +228,18 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     }
                 }
                 updateThreadPaused = false;
+                L.w("Update ^", "thread");
             }
             long endTime = System.nanoTime();
             totalUpdateTimeNS = endTime - startTime;
 
             //Figure out how much to delay based on how much time is left over in this frame (or no delay at all if we went over the time limit)
             int amountToDelayNS = (int) Math.max(expectedUpdateTimeNS - totalUpdateTimeNS, 0);
+
+            if (amountToDelayNS == 0)
+            {
+                Log.w("Update", "Update took too long. Going immediately to next update");
+            }
 
             /*if (amountToDelayNS+totalUpdateTimeNS != 40000000)
             {
@@ -272,12 +276,26 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 // but we won't know that an issue occurred.
                 vsync.postFrameCallback(this);
 
+                // Acquire the canvas lock now to save time later (this can be an expensive operation!
+                if (gameScreen.canVisualize() && !gameScreen.preparedToVisualize())
+                {
+                    gameScreen.prepareVisualize();
+                }
+
                 // Correct for minor difference in vsync time.
-                // This is probably totally unnecessary.
+                // This is probably totally unnecessary. (And will only change frameTimeNanos in a sufficiently high API anyway)
                 frameTimeNanos -= vsyncOffsetNanos;
 
                 synchronized (updateAndFrameAndInputMonitor)
                 {
+                    L.d("Frame V", "thread");
+
+                    // If we aren't prepared to visualize yet, try one more time, now that we have acquired the monitor lock (because this may be taking place a good deal later)
+                    if (!gameScreen.preparedToVisualize() && gameScreen.canVisualize())
+                    {
+                        gameScreen.prepareVisualize();
+                    }
+
                     // Stop game if prompted
                     if (stopped)
                     {
@@ -285,14 +303,13 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                         // we should remove it if we plan on quiting
                         // so we do not do an extra callback.
                         vsync.removeFrameCallback(this);
+                        if (gameScreen.preparedToVisualize())
+                        {
+                            gameScreen.visualize(lastVisualizedGameState);
+                        }
                         Looper.myLooper().quit();
                         return;
                     }
-                    /*if (System.nanoTime() - frameTimeNanos > 2000000)
-                    {
-                        vsync.postFrameCallback(this);
-                        return; //Drop frame
-                    }*/
 
                     // Pause game
                     // Spin lock when we want to pause
@@ -307,7 +324,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                             }
                             frameThreadPaused = true;
                             updateAndFrameAndInputMonitor.wait();
-                            Log.d("WOKEN", "WOKEN");
+                            L.d("WOKEN", "WOKEN");
                         }
                         catch (InterruptedException e)
                         {
@@ -319,25 +336,19 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     boolean paintedFrame = false;
 
                     // Paint frame
-                    if (gameScreen.canVisualize())
+                    if (gameScreen.preparedToVisualize())
                     {
                         paintedFrame = true;
-                        //double ratio = ((double) (frameTimeNanos - lastUpdateTimeNS)) / expectedUpdateTimeNS; //TODO: perhaps each entity should calculate ration based on when it is drawn? This may improve interpolation for a scene with many objects.
-                        //Log.d("RATIO", ratio+"");
-                        //Log.d("Gonna frame", "now, read lastupdatetime as: " + lastUpdateTimeNS);
-                        //if (ratio < 0) ratio = 0;
-                        //if (ratio > 1) ratio = 1;
 
                         GameState oldState;
                         GameState newState;
 
-                        boolean foundCorrectStates = false;
-
-                        while (!foundCorrectStates)
+                        while (true)
                         {
-                            //TODO: instead of passing ratio, construct game state as interpolation between two of the saved ones, and visualize that
+                            L.d("GameStates: " + gameStates.size(), "thread");
                             if (gameStates.size() >= 2) // We need two states to draw (interpolate between them)
                             {
+                                // Get the first two saved states
                                 oldState = gameStates.get(0);
                                 newState = gameStates.get(1);
 
@@ -352,98 +363,55 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 if (interpolationRatio > 1)
                                 {
                                     gameStates.remove(0);
+                                    continue;
                                 }
                                 else
                                 {
-                                    foundCorrectStates = true;
+                                    Map<InterpolatableEntity, InterpolatableState> oldInterpolatableEntitiesMap = oldState.getInterpolatableEntitiesMap();
+                                    Map<InterpolatableEntity, InterpolatableState> newInterpolatableEntitiesMap = newState.getInterpolatableEntitiesMap();
 
-                                    // Construct game state based on interpolation between the two active ones
-                                    GameState interpolatedState = new GameState();
+                                    Set<Map.Entry<InterpolatableEntity, InterpolatableState>> oldInterpolatableEntitiesMapEntrySet = oldInterpolatableEntitiesMap.entrySet();
 
-                                    Set<Map.Entry<String, Object>> oldStateEntrySey = oldState.dataEntrySet();
-
-                                    for (Map.Entry<String, Object> oldEntry : oldStateEntrySey)
+                                    for (Map.Entry<InterpolatableEntity, InterpolatableState> oldEntry : oldInterpolatableEntitiesMapEntrySet)
                                     {
+                                        InterpolatableEntity key = oldEntry.getKey(); // We can define this now because only on rare occasion will this not be used.
                                         // If this entry is common to both sets
-                                        if (newState.getDataMap().containsKey(oldEntry.getKey()))
+                                        if (newInterpolatableEntitiesMap.containsKey(key))
                                         {
-                                            boolean interpolatedEntity = false;
-                                            Object oldValue = oldEntry.getValue();
-                                            Object newValue = newState.getDataMap().get(oldEntry.getKey());
-                                            // If they are Entities
-                                            if (oldValue instanceof Entity && newValue instanceof Entity)
-                                            {
-                                                Entity oldEntity = (Entity) oldValue;
-                                                Entity newEntity = (Entity) newValue;
+                                            InterpolatableState oldValue = oldEntry.getValue();
+                                            InterpolatableState newValue = newInterpolatableEntitiesMap.get(key);
 
-                                                if (oldEntity.usesInterpolation() && newEntity.usesInterpolation())
-                                                {
-                                                    interpolatedEntity = true;
+                                            double interpolatedX = ((newValue.x - oldValue.x) * interpolationRatio) + oldValue.x;
+                                            double interpolatedY = ((newValue.y - oldValue.y) * interpolationRatio) + oldValue.y;
 
-                                                    double interpolatedX = ((newEntity.getX() - oldEntity.getX()) * interpolationRatio) + oldEntity.getX();
-                                                    double interpolatedY = ((newEntity.getY() - oldEntity.getY()) * interpolationRatio) + oldEntity.getY();
-
-                                            /*
-                                            // Interpolate X, Y of entity
-                                            Entity interpolatedEntity = null;//new Entity(newEntity); // Use the newEntity as a template
-                                            try
-                                            {
-                                                interpolatedEntity = newEntity.getClass().getConstructor(Entity.class).newInstance(newEntity);
-                                            } catch (InstantiationException e)
-                                            {
-                                                e.printStackTrace();
-                                            } catch (IllegalAccessException e)
-                                            {
-                                                e.printStackTrace();
-                                            } catch (InvocationTargetException e)
-                                            {
-                                                e.printStackTrace();
-                                            } catch (NoSuchMethodException e)
-                                            {
-                                                e.printStackTrace();
-                                            }
-                                            interpolatedEntity.setX(interpolatedX);
-                                            interpolatedEntity.setY(interpolatedY);
-                                            interpolatedState.saveEntity(oldEntry.getKey(), interpolatedEntity, false);*/
-
-                                                    newEntity.setPaintX(interpolatedX);
-                                                    newEntity.setPaintY(interpolatedY);
-
-                                                    interpolatedState.saveData(oldEntry.getKey(), newEntity); // Reuse the newEntity
-                                                }
-                                            }
-                                            if (!interpolatedEntity)
-                                            {
-                                                interpolatedState.saveData(oldEntry.getKey(), newValue);
-                                            }
+                                            //TODO: maybe find another way to communicate where to paint the entity?
+                                            key.interpolatedX = interpolatedX;
+                                            key.interpolatedY = interpolatedY;
                                         }
                                     }
 
-                                    gameScreen.prepareVisualize(); //TODO: move this to better more opportune place which is earlier for preperation
-                                    gameScreen.visualize(interpolatedState);
+                                    gameScreen.visualize(newState);
+                                    lastVisualizedGameState = newState;
+                                    break;
                                 }
-                            }/*
-                            else if (gameStates.size() >= 1)
-                            {
-                                foundCorrectStates = true; // Just to end the loop TODO: make this more descriptive of intent
-                                gameScreen.prepareVisualize();
-                                gameScreen.visualize(gameStates.get(0));
-                                Log.w("T", "We want to draw but there aren't enough new updates! Using what we have to give update picture.");
-                            }*/
+                            }
                             else
                             {
-                                foundCorrectStates = true; // Just to end the loop TODO: make this more descriptive of intent
-                                Log.w("T", "We want to draw but there aren't enough new updates!");
+                                Log.w("T", "We want to draw but there aren't enough new updates! Using old state.");
+                                if (lastVisualizedGameState != null)
+                                {
+                                    gameScreen.visualize(lastVisualizedGameState);
+                                }
+                                break;
                             }
                         }
-
-                        //gameScreen.visualize(ratio);
                     }
 
                     if (paintedFrame)
                     {
                         oneFrameThenPause = false;
                     }
+                    L.d("Frame ^", "thread");
                 }
             }
         };
@@ -477,6 +445,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 {
                     gameUpdateThread.join();
                     viewPaintThread.join();
+                    L.d("Two threads stopped", "stop");
                 }
                 catch (InterruptedException e)
                 {
@@ -484,6 +453,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 }
                 finally
                 {
+                    L.d("Finally running", "stop");
                     cleanup();
                     dispatchEvent(GameEventConstants.GAME_OVER);
                 }
@@ -617,7 +587,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
      * TODO: remove this and replace with game states (a little easier to deal with, but not much
      */
     /*
-    protected <T extends Entity> T track(T entityKind)
+    protected <T extends InterpolatableEntity> T track(T entityKind)
     {
         entityList.add(entityKind);
         return entityKind;
@@ -625,10 +595,10 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
     /**
      * Black magic or utter genius?
-     * Perhaps add overloaded constructor for Entity itself that does not require you to pass Entity.class?
+     * Perhaps add overloaded constructor for InterpolatableEntity itself that does not require you to pass InterpolatableEntity.class?
      */
     /*
-    protected <T extends Entity> T createEntity(Class<T> type, Object... args)
+    protected <T extends InterpolatableEntity> T createEntity(Class<T> type, Object... args)
     {
         T creation = null;
 

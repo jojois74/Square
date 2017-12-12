@@ -1,12 +1,10 @@
 package box.shoe.gameutils;
 
+import android.graphics.Point;
 import android.util.Log;
 
-import com.rits.cloning.Cloner;
-
-import java.lang.reflect.InvocationTargetException;
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
@@ -18,12 +16,28 @@ import java.util.Set;
 public class GameState
 {
     private Map<String, Object> data;
-    private LinkedList<Entity> interpolatableEntities;
+    private IdentityHashMap<InterpolatableEntity, InterpolatableState> interpolatableEntitiesMap;
     public long timeStamp;
 
     public GameState()
     {
         data = new HashMap<>();
+        interpolatableEntitiesMap = new IdentityHashMap<>();
+    }
+
+    public void saveInterpolatableEntity(InterpolatableEntity interpolatableEntity)
+    {
+        interpolatableEntitiesMap.put(interpolatableEntity, new InterpolatableState(interpolatableEntity.x, interpolatableEntity.y));
+    }
+
+    protected IdentityHashMap getInterpolatableEntitiesMap()
+    {
+        return interpolatableEntitiesMap;
+    }
+
+    public Set<InterpolatableEntity> getInterpolatedEntities()
+    {
+        return interpolatableEntitiesMap.keySet();
     }
 
     public <T> T getData(String key)
@@ -39,21 +53,15 @@ public class GameState
     public void saveData(String key, Object obj)
     {
         data.put(key, obj);
-        /*
-        if ((obj instanceof Entity) && ((Entity) obj).usesInterpolation())
-        {
-            saveInterpolatableEntity(obj);
-        }
-        */
     }
 /*
     public void saveInterpolatableEntity(Object obj)
     {
-        if (!(obj instanceof Entity) || !((Entity) obj).usesInterpolation())
+        if (!(obj instanceof InterpolatableEntity) || !((InterpolatableEntity) obj).usesInterpolation())
         {
-            throw new IllegalArgumentException("Must be interpolatable Entity");
+            throw new IllegalArgumentException("Must be interpolatable InterpolatableEntity");
         }
-        interpolatableEntities.add((Entity) obj);
+        interpolatableEntities.add((InterpolatableEntity) obj);
     }
 */
     public Map<String, Object> getDataMap()
@@ -61,17 +69,12 @@ public class GameState
         return data;
     }
 
-    public LinkedList<Entity> getInterpolatableEntities()
-    {
-        return interpolatableEntities;
-    }
-
 /*
     //TODO: save entire collection and reclaim it later
     //TODO: or find some other way to save entities that are stored among other objects
-    public void saveEntityCollection(String key, Collection<Entity> collection)
+    public void saveEntityCollection(String key, Collection<InterpolatableEntity> collection)
     {
-        for (Entity entity : collection)
+        for (InterpolatableEntity entity : collection)
         {
             saveEntity(key, entity);
         }

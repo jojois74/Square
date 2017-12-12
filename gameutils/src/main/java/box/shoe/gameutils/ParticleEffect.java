@@ -13,10 +13,10 @@ import java.util.ArrayList;
 
 public class ParticleEffect
 {/*
-    private Entity emitter;
+    private InterpolatableEntity emitter;
     private int num;
 
-    public ParticleEffect(Entity source, int numParticles)
+    public ParticleEffect(InterpolatableEntity source, int numParticles)
     {
         emitter = source;
         num = numParticles;
@@ -24,11 +24,11 @@ public class ParticleEffect
 
     public AbstractPaintable getVisual()
     {
-        final ArrayList<Entity> particles = new ArrayList<>();
+        final ArrayList<InterpolatableEntity> particles = new ArrayList<>();
         Rand rand = new Rand();
         for (int i = 0; i < num; i++)
         {
-            particles.add(new Entity(emitter.getX(), emitter.getY(), new Vector(rand.randomBetween(-10, 10), 10), new ParticlePaintable(10, 10)));
+            particles.add(new InterpolatableEntity(emitter.getX(), emitter.getY(), new Vector(rand.randomBetween(-10, 10), 10), new ParticlePaintable(10, 10)));
             Log.d("f", "h");
         }
 
@@ -55,7 +55,7 @@ public class ParticleEffect
 
     private class ContainPaintable extends AbstractPaintable
     {
-        ArrayList<Entity> p;
+        ArrayList<InterpolatableEntity> p;
         private ContainPaintable(int w, int h, ArrayList p)
         {
             super(w, h);
@@ -66,7 +66,7 @@ public class ParticleEffect
         @Override
         protected void blueprintPaint(int width, int height, Canvas canvas)
         {
-            for (Entity particle : p)
+            for (InterpolatableEntity particle : p)
             {
                 particle.paint(canvas);
                 particle.saveOldPosition();

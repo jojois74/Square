@@ -12,8 +12,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.TextView;
 
-import com.rits.cloning.Cloner;
-
+import box.shoe.gameutils.L;
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
 import box.shoe.gameutils.GameEventConstants;
@@ -29,6 +28,9 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        L.LOG = true;
+        L.disableChannel("thread");
+        L.disableChannel("stop");
         MainActivity.appContext = getApplicationContext();
         print("CREATE");
         requestWindowFeature(Window.FEATURE_NO_TITLE);

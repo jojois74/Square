@@ -3,19 +3,17 @@ package box.gift.rope;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Point;
 import android.util.Log;
 
-import java.math.BigDecimal;
 import java.util.LinkedList;
-import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
 import box.shoe.gameutils.Entity;
+import box.shoe.gameutils.InterpolatableEntity;
 import box.shoe.gameutils.GameState;
-
-import static android.R.attr.width;
+import box.shoe.gameutils.VisualizableEntity;
 
 /**
  * Created by Joseph on 10/23/2017.
@@ -31,17 +29,23 @@ public class RopeSurfaceView extends AbstractGameSurfaceView
     @Override
     protected void paint(Canvas canvas, GameState interpolatedState)
     {
-        Player player = interpolatedState.getData("player"); //TODO: replace strings with constants
-        LinkedList<Entity> walls = interpolatedState.getData("walls");
-
-        //TODO: paint from interpolated states, change entities to be nice (already sorta done).
+        Set<InterpolatableEntity> interps = interpolatedState.getInterpolatedEntities();
+        //MainActivity.print(interps.toString());
 
         // Background
         canvas.drawColor(Color.WHITE);
 
         // Player
-        if (player != null)
-            player.paint(canvas);
+        for (InterpolatableEntity interp : interps)
+        {
+            if (interp instanceof VisualizableEntity)
+            {
+                ((VisualizableEntity) interp).paint(canvas);
+            }
+        }
+
+        /*if (player != null)
+            player.paint(canvas);*/
 
 /*
         // Particle
@@ -49,14 +53,14 @@ public class RopeSurfaceView extends AbstractGameSurfaceView
             data.effect.paint(canvas, interpolationRatio);
 */
         // Walls
-        for (Entity wall : walls)
+        /*for (InterpolatableEntity wall : walls)
         {
             wall.paint(canvas);
-        }
+        }*/
 /*
         // Coins
-        LinkedList<Entity> coins = data.coins;
-        for (Entity coin : coins)
+        LinkedList<InterpolatableEntity> coins = data.coins;
+        for (InterpolatableEntity coin : coins)
         {
             coin.paint(canvas, interpolationRatio);
         }

@@ -1,180 +1,110 @@
 package box.shoe.gameutils;
 
 import android.annotation.SuppressLint;
-import android.graphics.Canvas;
 import android.graphics.Point;
 import android.support.annotation.CallSuper;
-import android.util.Log;
 
-import java.math.BigDecimal;
-import java.util.concurrent.TimeUnit;
-
-import static android.support.v7.widget.AppCompatDrawableManager.get;
-
-/** //TODO: maybe each entity should keep track of it's old value, so we can map each entity to it's old value for interpolation, no need for pesky IDs
- * Created by Joseph on 10/24/2017.
- * TODO: Rewrite the whole Entity system and favor more subclasses. It is a mess!
- * TODO: remove confirmable value class!
- * ideas: movable entity, drawable entity, velocity entity.........
+/**
+ * Created by Joseph on 12/9/2017.
+ * A game object which holds a position and space on the screen and can move around.
+ * Technically: a Game object with x and y coordinates, which can be fractional, width and height, which can be fractional (or 0 to indicate no space taken up) and Vector objects for velocity and acceleration.
+ * Width and height are different from display-width and display-height.
  */
+
 public class Entity implements Cleanable
 {
-    private double x;
-    private double y;
-    private double paintX;
-    private double paintY;
-    private Vector velocity;
-    private boolean useInterpolation;
+    // X coordinate, representative of how far right this is on the screen.
+    public double x;
+    // Y coordinate, representative of how far up this is on the screen. //TODO: make this actually true, override canvas????? (or provide higher level abstraction for drawing...)
+    public double y;
 
-    private AbstractPaintable visual;
+    // Width represents how much horizontal space this takes up.
+    public double width;
+    // Height represents how much vertical space this takes up.
+    public double height;
 
-    public Entity(double initialX, double initialY, AbstractPaintable visual)
+    // Vector which represents how many x and y units this will move per update.
+    public Vector velocity;
+    // Vector which represents how many x and y units the velocity will change by per update.
+    public Vector acceleration;
+
+    // Point of origin from which all positioning of this object is calculated.
+    public Point registrationPoint;
+
+    /**
+     * Creates an Entity with the specified x and y coordinates, with no width or height, with no velocity or acceleration.
+     * @param initialX the starting x coordinate.
+     * @param initialY the starting y coordinate.
+     */
+    public Entity(double initialX, double initialY)
     {
-        init(initialX, initialY, null, visual, true);
+        this(initialX, initialY, 0, 0, Vector.ZERO, Vector.ZERO);
     }
 
-    public Entity(double initialX, double initialY, Vector initialVelocity, AbstractPaintable initialVisual)
+    /**
+     * Creates an Entity with the specified x and y coordinates, width and height, with no velocity or acceleration.
+     * @param initialX the starting x coordinate.
+     * @param initialY the starting y coordinate.
+     * @param initialWidth the starting width.
+     * @param initialHeight the starting height.
+     */
+    public Entity(double initialX, double initialY, double initialWidth, double initialHeight)
     {
-        init(initialX, initialY, initialVelocity, initialVisual, true);
+        this(initialX, initialY, initialWidth, initialHeight, Vector.ZERO, Vector.ZERO);
     }
 
-    public Entity(double initialX, double initialY, Vector initialVelocity, AbstractPaintable initialVisual, boolean useInterpolation)
+    /**
+     * Creates an Entity with the specified x and y coordinates and velocity, with no acceleration.
+     * @param initialX the starting x coordinate.
+     * @param initialY the starting y coordinate.
+     * @param initialWidth the starting width.
+     * @param initialHeight the starting height.
+     * @param initialVelocity the starting velocity.
+     */
+    public Entity(double initialX, double initialY, double initialWidth, double initialHeight, Vector initialVelocity)
     {
-        init(initialX, initialY, initialVelocity, initialVisual, useInterpolation);
+        this(initialX, initialY, initialWidth, initialHeight, initialVelocity, Vector.ZERO);
     }
 
-    private void init(double initialX, double initialY, Vector initialVelocity, AbstractPaintable initialVisual, boolean useInterpolation)
+    /**
+     * Creates an Entity with the specified x and y coordinates, velocity and acceleration.
+     * @param initialX the starting x coordinate.
+     * @param initialY the starting y coordinate.
+     * @param initialWidth the starting width.
+     * @param initialHeight the starting height.
+     * @param initialVelocity the starting velocity.
+     * @param initialAcceleration the starting acceleration.
+     */
+    public Entity(double initialX, double initialY, double initialWidth, double initialHeight, Vector initialVelocity, Vector initialAcceleration)
     {
         x = initialX;
         y = initialY;
-        if (initialVelocity == null)
-        {
-            velocity = new Vector(0, 0);
-        }
-        else
-        {
-            velocity = initialVelocity;
-        }
-        visual = initialVisual;
-        this.useInterpolation = useInterpolation;
+        width = initialWidth;
+        height = initialHeight;
+        velocity = initialVelocity;
+        acceleration = initialAcceleration;
+        registrationPoint = new Point(0, 0);
     }
 
-    public boolean usesInterpolation()
+    /**
+     * Updates position based on current velocity, and then updates velocity based on current acceleration.
+     */
+    @CallSuper
+    public void update()
     {
-        return useInterpolation;
+        // Update positions first based on current velocity
+        x += velocity.getX();
+        y += velocity.getY();
+
+        // Update velocity based on current acceleration
+        velocity = velocity.add(acceleration);
     }
 
-    //Clone constructor
-    //TODO: call super annotation, for constructors?
-    public Entity(Entity toClone)
-    {
-        x = toClone.getX();
-        y = toClone.getY();
-        velocity = toClone.getVelocity(); //No need to clone immutable vector
-        visual = toClone.visual; //TODO: clone the visual, or at least provide and use a getter function.
-        useInterpolation = toClone.useInterpolation;
-    }
-
-    public void setVisual(AbstractPaintable newVisual) //Should the Paintable be able to be changed? Probably.... for entities with different drawing states. But ideally the Paintable itself will change how it is drawn when necessary.
-    {
-        visual = newVisual; //And then update relevant stuff
-    }
-
-    public void paint(Canvas canvas) //Caller simply asks to paint this entity, and it strings the paint through to the visual!
-    {
-        visual.paint(getPaintX(), getPaintY(), canvas); //And then (or before) can paint any other thing relevant to this entity (additional things should probably be done in subclass which overrides this method (but first calls the super method to paint the Paintable of course!))
-    } //TODO: remember to override paint for effects!
-
-    /*
-    public void paint(Canvas canvas, double interpolationRatio) //This one will auto paint at the entity's position using interpolation
-    {
-        //long currentPaintTime = System.nanoTime();
-        //Log.d("DIFF", currentPaintTime - lastPaintTime+"");
-        //Log.d("DIFF", (getPrevX() + ((getX() - getPrevX()) * interpolationRatio)) - lastPaintX+"");
-        //Log.d("DIFF", ((getPrevX() + ((getX() - getPrevX()) * interpolationRatio)) - lastPaintX) / (currentPaintTime - lastPaintTime) +"");
-        //lastPaintTime = currentPaintTime;
-        //lastPaintX = getPrevX() + ((getX() - getPrevX()) * interpolationRatio);
-        //Log.d("TAG", lastPaintX+"");
-        //Log.d("TAG", interpolationRatio+"");
-        visual.paint(getPrevX() + ((getX() - getPrevX()) * interpolationRatio), getPrevY() + ((getY() - getPrevY()) * interpolationRatio), canvas);
-    }*/
-
-    public void moveWithVelocity()
-    {
-        setX(getX() + velocity.getX());
-        setY(getY() + velocity.getY());
-    }
-
-    public void setX(double newX)
-    {
-        x = newX;
-    }
-
-    public void setY(double newY)
-    {
-        y = newY;
-    }
-
-    public void setVelocity(Vector newVelocity)
-    {
-        velocity = newVelocity;
-    }
-
-    public double getX()
-    {
-        return x;
-    }
-
-    public double getY()
-    {
-        return y;
-    }
-
-    public Vector getVelocity()
-    {
-        return velocity;
-    }
-
-    public int getVisualWidth()
-    {
-        return visual.getWidth();
-    }
-
-    public int getVisualHeight()
-    {
-        return visual.getHeight();
-    }
-
-    public Point getVisualRegistrationPoint()
-    {
-        return visual.getRegistrationPoint();
-    }
-
-    @SuppressLint("MissingSuperCall") //Since this is the top level implementor
+    @SuppressLint("MissingSuperCall")
+    @Override
     public void cleanup()
     {
         velocity = null;
-        visual.cleanup();
-        //More cleanup
-    }
-
-    public double getPaintX()
-    {
-        return paintX;
-    }
-
-    public void setPaintX(double paintX)
-    {
-        this.paintX = paintX;
-    }
-
-    public double getPaintY()
-    {
-        return paintY;
-    }
-
-    public void setPaintY(double paintY)
-    {
-        this.paintY = paintY;
+        acceleration = null;
     }
 }

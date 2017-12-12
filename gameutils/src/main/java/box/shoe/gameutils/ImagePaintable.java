@@ -11,14 +11,15 @@ import android.graphics.Rect;
  * Created by Joseph on 10/23/2017.
  */
 
-public class ImagePaintable extends AbstractPaintable
+public class ImagePaintable// extends AbstractPaintable
 {
     private Point setAsRegPoint = null;
     private Bitmap sprite;
 
     /**
-     * Convenient one-bitmap-only-paintable (it is useful to use a paintable for this application rather than simply drawing the bitmap directly if you ant to set a registration point other than the top left)
+     * Convenient one-bitmap-only-paintable (it is useful to use a paintable for this application rather than simply drawing the bitmap directly if you want to set a registration point other than the top left)
      */
+    /*
     public ImagePaintable(final int imgId, final Resources res, final Point registrationPoint)
     {
         super();
@@ -27,7 +28,8 @@ public class ImagePaintable extends AbstractPaintable
         int width = (int) (sprite.getWidth() / density);
         int height = (int) (sprite.getHeight() / density);
         setAsRegPoint = registrationPoint;
-        setDimensions(width, height);
+        setWidth(width);
+        setHeight(height);
     }
 
     public ImagePaintable(final int imgId, final Resources res, final double registrationPointXPercent, final double registrationPointYPercent)
@@ -38,18 +40,13 @@ public class ImagePaintable extends AbstractPaintable
         int width = (int) (sprite.getWidth() / density);
         int height = (int) (sprite.getHeight() / density);
         setAsRegPoint = new Point((int) (registrationPointXPercent * width), (int) (registrationPointYPercent * height));
-        setDimensions(width, height);
+        setWidth(width);
+        setHeight(height);
     }
 
     @Override
     protected void blueprintPaint(int width, int height, Canvas canvas)
     {
         canvas.drawBitmap(sprite, null, new Rect(0, 0, width, height), null);
-    }
-
-    @Override
-    protected void recalculateRegistrationPoint(int width, int height)
-    {
-        setRegistrationPoint(setAsRegPoint);
-    }
+    }*/
 }

@@ -1,8 +1,6 @@
 package box.gift.rope;
 
 import android.content.Context;
-import android.graphics.Point;
-import android.util.Log;
 import android.view.MotionEvent;
 
 import java.util.Iterator;
@@ -10,13 +8,17 @@ import java.util.LinkedList;
 
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
+import box.shoe.gameutils.AbstractPaintable;
 import box.shoe.gameutils.Entity;
+import box.shoe.gameutils.InterpolatableEntity;
 import box.shoe.gameutils.EntityCollisions;
 import box.shoe.gameutils.GameState;
 import box.shoe.gameutils.GameTasker;
+import box.shoe.gameutils.Paintable;
 import box.shoe.gameutils.ParticleEffect;
 import box.shoe.gameutils.Rand;
 import box.shoe.gameutils.Vector;
+import box.shoe.gameutils.VisualizableEntity;
 
 /**
  * Created by Joseph on 10/23/2017.
@@ -29,15 +31,17 @@ public class Rope extends AbstractGameEngine
 
     // Consts
     private static final int TARGET_UPS = 30; //No need to make ups too high!
+    private Paintable wallPaintable;
+    private Paintable coinPaintable;
 
     // Objs
     public Player player;
-    public LinkedList<Entity> walls;
-    public LinkedList<Entity> coins;
+    public LinkedList<VisualizableEntity> walls;
+    public LinkedList<VisualizableEntity> coins;
     private Rand rand;
     private GameTasker scheduler;
     private ParticleEffect part;
-    public Entity effect;
+    public InterpolatableEntity effect;
 
     public Rope(Context appContext, AbstractGameSurfaceView screen)
     {
@@ -51,8 +55,10 @@ public class Rope extends AbstractGameEngine
     @Override
     protected void initialize()
     {
+        wallPaintable = new WallPaintable(25, getGameHeight() / 3);
+        coinPaintable = new CoinPaintable(80, 80);
         //player = new Player(getGameWidth() / 6, getGameHeight() / 8, new PlayerPaintable(60, 60));
-        player = new Player(getGameWidth() / 6, getGameHeight() / 8, new PlayerPaintable(60, 60));
+        player = new Player(getGameWidth() / 6, getGameHeight() / 8);
         Runnable generateWallAndCoin = new Runnable()
         {
             @Override
@@ -60,19 +66,20 @@ public class Rope extends AbstractGameEngine
             {
                 int third = getGameHeight() / 3;
                 int hole = rand.randomBetween(0, 2);
-                int wallWidth = 25;
-                WallPaintable wp = new WallPaintable(wallWidth, third);
                 if (hole != 0)
                 {
-                    walls.add(new Entity(getGameWidth(), 0, wp));
+                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), 0, wallPaintable);
+                    walls.add(wall);
                 }
                 if (hole != 1)
                 {
-                    walls.add(new Entity(getGameWidth(), third, wp));
+                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), third, wallPaintable);
+                    walls.add(wall);
                 }
                 if (hole != 2)
                 {
-                    walls.add(new Entity(getGameWidth(), 2 * third, wp));
+                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), 2 * third, wallPaintable);
+                    walls.add(wall);
                 }
 
                 int rand = random.randomBetween(0, 3);
@@ -80,7 +87,9 @@ public class Rope extends AbstractGameEngine
                 int randHeight = random.randomBetween(margin, getGameHeight() - margin);
                 if (rand == 0)
                 {
-                    coins.add(new Entity(getGameWidth() * 1.3, randHeight, new CoinPaintable(80, 80)));
+                    coins.add((new VisualizableEntity(getGameWidth() * 1.3, randHeight, 80, 80, coinPaintable))
+                            .setDisplayWidth(80)
+                            .setDisplayHeight(80));
                 }
             }
         };
@@ -93,31 +102,31 @@ public class Rope extends AbstractGameEngine
     {
         scheduler.tick();
 
-        if (player.getY() < 0 || player.getY() > getGameHeight())
+        if (player.y < 0 || player.y > getGameHeight())
         {
             playerDead();
         }
 
-        player.setVelocity(player.getVelocity().add(new Vector(0, 2)));
-        player.moveWithVelocity();
+        player.velocity = (player.velocity.add(new Vector(0, 2)));
+        player.update();
 
         boolean passingWall = false;
-        Iterator<Entity> iterator = walls.iterator();
+        Iterator<VisualizableEntity> iterator = walls.iterator();
         while (iterator.hasNext())
         {
-            Entity wall = iterator.next();
-            double oldX = wall.getX();
-            wall.setVelocity(new Vector(-21, 0));
-            wall.moveWithVelocity();
-            if (oldX > player.getX() && wall.getX() < player.getX())
+            VisualizableEntity wall = iterator.next();
+            double oldX = wall.x;
+            wall.velocity = new Vector(-21, 0);
+            wall.update();
+            if (oldX > player.x && wall.x < player.x)
             {
                 passingWall = true;
-                if (player.getY() > wall.getY() && player.getY() < wall.getY() + wall.getVisualHeight())
+                if (player.y > wall.y && player.y < wall.y + wall.getDisplayHeight())
                 {
                     playerDead();
                 }
             }
-            if (wall.getX() + wall.getVisualWidth() < 0)
+            if (wall.x + wall.getDisplayWidth() < 0)
             {
                 iterator.remove();
             }
@@ -130,10 +139,10 @@ public class Rope extends AbstractGameEngine
         iterator = coins.iterator();
         while (iterator.hasNext())
         {
-            Entity coin = iterator.next();
-            double oldX = coin.getX();
-            coin.setVelocity(new Vector(-21, 0));
-            coin.moveWithVelocity();
+            InterpolatableEntity coin = iterator.next();
+            double oldX = coin.x;
+            coin.velocity = (new Vector(-21, 0));
+            coin.update();
             if (EntityCollisions.collideRectangle(player, coin)) //TODO: use circle collision for coins?
             {
                 score++;
@@ -145,16 +154,11 @@ public class Rope extends AbstractGameEngine
     @Override
     protected void saveGameState(GameState gameState)
     {
-        gameState.saveData("player", new Player(player));
-
-        LinkedList<Entity> mWalls = new LinkedList<>();
-        for (Entity wall : walls)
+        gameState.saveInterpolatableEntity(player);
+        for (InterpolatableEntity wall : walls)
         {
-            Entity mWall = new Entity(wall);
-            mWalls.add(mWall);
-            gameState.saveData(String.valueOf(System.identityHashCode(wall)), mWall); //TODO: this way of ID each object is unreliable
+            gameState.saveInterpolatableEntity(wall);
         }
-        gameState.saveData("walls", mWalls);
     }
 
     private void playerDead()
@@ -167,15 +171,14 @@ public class Rope extends AbstractGameEngine
     @Override
     public void cleanup()
     {
-        MainActivity.print("Cleanup activate");
+        // Cleanup the parent first to stop all threads, so we can be sure that the Entities are not used.
+        super.cleanup();
         player.cleanup();
         player = null;
         rand = null;
         //Cleanup scheduler TODO
         scheduler = null;
         //Cleanup walls TODO
-
-        super.cleanup();
     }
 
     @Override
@@ -192,6 +195,6 @@ public class Rope extends AbstractGameEngine
 
     private void actionDown()
     {
-        player.setVelocity(player.actionVelocity);
+        player.velocity = player.actionVelocity;
     }
 }

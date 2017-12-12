@@ -12,6 +12,8 @@ public final class Vector
     private final double x;
     private final double y;
 
+    public static final Vector ZERO = new Vector(0, 0);
+
     /**
      * Constructs a new Vector
      * @param x the x length

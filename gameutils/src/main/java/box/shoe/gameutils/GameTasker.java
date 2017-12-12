@@ -1,5 +1,7 @@
 package box.shoe.gameutils;
 
+import android.annotation.SuppressLint;
+
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -8,7 +10,7 @@ import java.util.Set;
  * Created by Joseph on 10/26/2017.
  */
 
-public class GameTasker
+public class GameTasker implements Cleanable
 {
     private double UPMS; // Updates per millisecond
     private Set<Task> tasks;
@@ -40,7 +42,19 @@ public class GameTasker
         }
     }
 
-    private class Task
+    @SuppressLint("MissingSuperCall")
+    @Override
+    public void cleanup()
+    {
+        for (Task task : tasks)
+        {
+            task.cleanup();
+        }
+        tasks.clear();
+        tasks = null;
+    }
+
+    private class Task implements Cleanable
     {
         private int maxFrames;
         private int currentFrame;
@@ -86,13 +100,20 @@ public class GameTasker
             if (otherObject == null)
                 return false;
             Task otherTask = (Task) otherObject;
-            if (otherTask.getClass() != Task.class)
+            if (otherTask.getClass() != getClass())
                 return false;
-            if (maxFrames == otherTask.maxFrames && schedulable == otherTask.schedulable)
+            if (maxFrames == otherTask.maxFrames && schedulable.equals(otherTask.schedulable))
             {
                 return true;
             }
             return false;
+        }
+
+        @SuppressLint("MissingSuperCall")
+        @Override
+        public void cleanup()
+        {
+            schedulable = null;
         }
     }
 }

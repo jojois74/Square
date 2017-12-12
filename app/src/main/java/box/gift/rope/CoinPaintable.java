@@ -14,7 +14,6 @@ public class CoinPaintable extends AbstractPaintable
     public CoinPaintable(int width, int height)
     {
         super(width, height);
-        setRegistrationPoint(0, height / 2);
     }
 
     @Override

@@ -10,7 +10,9 @@ import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
+import android.os.Build;
 import android.support.annotation.MainThread;
+import android.support.annotation.RestrictTo;
 import android.util.Log;
 
 import box.gift.gameutils.R;
@@ -28,12 +30,11 @@ import static android.R.attr.y;
  * The item is finally drawn with the registration point at the inputed coordinates
  */
 
-public abstract class AbstractPaintable implements Cleanable
+public abstract class AbstractPaintable implements Cleanable, Paintable
 {
     private int width;
     private int height;
-
-    private Point registrationPoint;
+    private boolean dimensionsChangedSinceLastPaint = false;
 
     //For ease
     protected Paint paint;
@@ -51,6 +52,7 @@ public abstract class AbstractPaintable implements Cleanable
      */
     protected AbstractPaintable(final int width, final int height)
     {
+        L.d("Paintable creating " + width, "stop");
         this.width = width;
         this.height = height;
         this.paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -58,75 +60,54 @@ public abstract class AbstractPaintable implements Cleanable
         paintableBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         paintableCanvas = new Canvas(paintableBitmap);
     }
-    protected AbstractPaintable() //If using this method, call to setDimensions must be done before attempting to paint
-    {//TODO disallow this constructor if not coming from an imagepaintable or subclass
-        this.paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    }
 
-    public final void paint(double x, double y, Canvas canvas) //Don't override this
+    public final void paint(int x, int y, Canvas canvas) //Don't override this
     {
-        int intX = (int) Math.round(x);
-        int intY = (int) Math.round(y);
-        if (registrationPoint == null)
+        if (dimensionsChangedSinceLastPaint)
         {
-            throw new IllegalStateException("Registration point has not been set yet");
+            // We do not always create a new canvas because most of the time it stays the same and we don't want to create unnecessary objects each frame.
+            createLocalCanvas();
         }
-        else
-        {
-            //Draw the paintable on a new canvas, then copy it over to the original canvas
-            paintableCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR); //Clear the temporary canvas
-            paintableCanvas.save();
-            blueprintPaint(width, height, paintableCanvas); //Paint at (0, 0)
-            canvas.drawBitmap(paintableBitmap, new Rect(0, 0, width, height), new Rect(intX - registrationPoint.x, intY - registrationPoint.y, intX - registrationPoint.x + width, intY - registrationPoint.y + height), paint); //Place the item i the appropriate spot on the canvas
-            paintableCanvas.restore();
-        }
+        dimensionsChangedSinceLastPaint = false;
+        //Draw the paintable on a new canvas, then copy it over to the original canvas
+        paintableCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR); //Clear the temporary canvas
+        paintableCanvas.save();
+        blueprintPaint(width, height, paintableCanvas); //Paint at (0, 0)
+        canvas.drawBitmap(paintableBitmap, new Rect(0, 0, width, height), new Rect(x, y, x + width, y + height), paint);
+        paintableCanvas.restore();
     }
 
-    protected abstract void blueprintPaint(int width, int height, Canvas canvas); //Override thise
+    @RestrictTo(RestrictTo.Scope.SUBCLASSES)
+    protected abstract void blueprintPaint(int width, int height, Canvas canvas); //Override this
 
+    //TODO: dimension changes should invoke new creation of bitmap etc perhaps only once when change is detected and not twice in a row when width and height are changed?
     public void setWidth(int newWidth)
     {
+        dimensionsChangedSinceLastPaint = true;
         width = newWidth;
         paintableBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         paintableCanvas = new Canvas(paintableBitmap);
-        recalculateRegistrationPoint(width, height);
     }
 
     public void setHeight(int newHeight)
     {
+        dimensionsChangedSinceLastPaint = true;
         height = newHeight;
-        paintableBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        paintableCanvas = new Canvas(paintableBitmap);
-        recalculateRegistrationPoint(width, height);
     }
 
-    public void setDimensions(int newWidth, int newHeight)
+    private void createLocalCanvas()
     {
-        width = newWidth;
-        height = newHeight;
-        paintableBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        paintableCanvas = new Canvas(paintableBitmap);
-        recalculateRegistrationPoint(width, height);
-    }
-
-    protected void recalculateRegistrationPoint(int width, int height)
-    {
-        throw new UnsupportedOperationException("Subclass must override recalculate registration point to set registration point based on new width and height");
-    }
-
-    protected final void setRegistrationPoint(int x, int y)
-    {
-        registrationPoint = new Point(x, y);
-    }
-
-    protected final void setRegistrationPoint(Point point)
-    {
-        registrationPoint = point;
-    }
-
-    protected Point getRegistrationPoint()
-    {
-        return registrationPoint;
+        if (paintableBitmap == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT)
+        {
+            paintableBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            paintableCanvas = new Canvas(paintableBitmap);
+        }
+        else
+        {
+            paintableBitmap.setWidth(width);
+            paintableBitmap.setHeight(height);
+            paintableCanvas.setBitmap(paintableBitmap);
+        }
     }
 
     public int getWidth()
@@ -142,7 +123,7 @@ public abstract class AbstractPaintable implements Cleanable
     @SuppressLint("MissingSuperCall")
     public void cleanup()
     {
-        registrationPoint = null;
+        L.d("Paintable cleaning up", "stop");
         paint = null;
         paintableCanvas = null;
         paintableBitmap = null;

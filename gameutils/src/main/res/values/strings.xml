@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">GameUtils</string>
+    <string name = "frame_thread_name">Frames</string>
+    <string name = "update_thread_name">Updates</string>
 </resources>

@@ -1,30 +1,27 @@
 package box.shoe.gameutils;
 
-import box.shoe.gameutils.Entity;
-
 /**
  * Created by Joseph on 12/4/2017.
  *
- * This class will be certainly re-made, or removed entirely, or split, etc. etc. etc. when the module Entity system is remade
+ * This class will be certainly re-made, or removed entirely, or split, etc. etc. etc. when the module InterpolatableEntity system is remade
  */
 
 public class EntityCollisions
 {
     //Should not use visual params, or at least respect reg point.
-    //The Entity system is a big mess, redesign ASAP
     public static boolean collideRectangle(Entity a, Entity b)
     {
         // Entity a
-        double minXA = a.getX();
-        double maxXA = minXA + a.getVisualWidth();
-        double minYA = a.getY();
-        double maxYA = minYA + a.getVisualHeight();
+        double minXA = a.x;
+        double maxXA = minXA + a.width;
+        double minYA = a.y;
+        double maxYA = minYA + a.height;
 
-        // Entity b
-        double minXB = b.getX();
-        double maxXB = minXB + b.getVisualWidth();
-        double minYB = b.getY();
-        double maxYB = minYB + b.getVisualHeight();
+        // InterpolatableEntity b
+        double minXB = b.x;
+        double maxXB = minXB + b.width;
+        double minYB = b.y;
+        double maxYB = minYB + b.height;
 
         return (
                 minXA < maxXB &&

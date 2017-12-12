@@ -1,26 +1,21 @@
 package box.gift.rope;
 
-import android.util.Log;
-
-import box.shoe.gameutils.AbstractPaintable;
-import box.shoe.gameutils.Entity;
+import box.shoe.gameutils.Paintable;
 import box.shoe.gameutils.Vector;
+import box.shoe.gameutils.VisualizableEntity;
 
 /**
  * Created by Joseph on 11/29/2017.
  */
 
-public class Player extends Entity
+public class Player extends VisualizableEntity
 {
+    private static final Paintable playerPaintable = new PlayerPaintable();
+
     public Vector actionVelocity = new Vector(0, -30);
 
-    public Player(double initialX, double initialY, AbstractPaintable visual)
+    public Player(double initialX, double initialY)
     {
-        super(initialX, initialY, visual);
-    }
-
-    public Player(Entity toClone)
-    {
-        super(toClone);
+        super(initialX, initialY, playerPaintable);
     }
 }
