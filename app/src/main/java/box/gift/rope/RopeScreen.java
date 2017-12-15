@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.util.Log;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -19,9 +20,9 @@ import box.shoe.gameutils.VisualizableEntity;
  * Created by Joseph on 10/23/2017.
  */
 
-public class RopeSurfaceView extends AbstractGameSurfaceView
+public class RopeScreen extends AbstractGameSurfaceView
 {
-    public RopeSurfaceView(Context context)
+    public RopeScreen(Context context)
     {
         super(context);
     }
@@ -29,20 +30,16 @@ public class RopeSurfaceView extends AbstractGameSurfaceView
     @Override
     protected void paint(Canvas canvas, GameState interpolatedState)
     {
-        Set<InterpolatableEntity> interps = interpolatedState.getInterpolatedEntities();
+        //List<InterpolatableEntity> interps = interpolatedState.getInterpolatedEntities();
         //MainActivity.print(interps.toString());
 
         // Background
         canvas.drawColor(Color.WHITE);
 
         // Player
-        for (InterpolatableEntity interp : interps)
-        {
-            if (interp instanceof VisualizableEntity)
-            {
-                ((VisualizableEntity) interp).paint(canvas);
-            }
-        }
+        Player player = interpolatedState.getData("player");
+        if (player.interpolatedThisFrame)
+            player.paint(canvas);
 
         /*if (player != null)
             player.paint(canvas);*/
@@ -53,10 +50,12 @@ public class RopeSurfaceView extends AbstractGameSurfaceView
             data.effect.paint(canvas, interpolationRatio);
 */
         // Walls
-        /*for (InterpolatableEntity wall : walls)
+        LinkedList<VisualizableEntity> walls = interpolatedState.getData("walls");
+        for (VisualizableEntity wall : walls)
         {
-            wall.paint(canvas);
-        }*/
+            if (wall.interpolatedThisFrame)
+                wall.paint(canvas);
+        }
 /*
         // Coins
         LinkedList<InterpolatableEntity> coins = data.coins;
@@ -70,10 +69,10 @@ public class RopeSurfaceView extends AbstractGameSurfaceView
         int thickness = 14;
         canvas.drawRect(0, 0, getWidth(), thickness, paint);
         canvas.drawRect(0, getHeight() - thickness, getWidth(), getHeight(), paint);
-
+*/
         // Score
         paint.setTextSize(50);
         paint.setColor(Color.BLUE);
-        canvas.drawText("Score: " + String.valueOf(data.score), 40, 90, paint);*/
+        canvas.drawText("Score: " + String.valueOf(interpolatedState.getData("score")), 40, 90, paint);
     }
 }

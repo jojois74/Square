@@ -10,12 +10,10 @@ import box.shoe.gameutils.VisualizableEntity;
 
 public class Player extends VisualizableEntity
 {
-    private static final Paintable playerPaintable = new PlayerPaintable();
-
     public Vector actionVelocity = new Vector(0, -30);
 
     public Player(double initialX, double initialY)
     {
-        super(initialX, initialY, playerPaintable);
+        super(initialX, initialY, new PlayerPaintable());
     }
 }

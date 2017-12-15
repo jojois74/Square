@@ -8,8 +8,6 @@ import java.util.LinkedList;
 
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
-import box.shoe.gameutils.AbstractPaintable;
-import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.InterpolatableEntity;
 import box.shoe.gameutils.EntityCollisions;
 import box.shoe.gameutils.GameState;
@@ -24,13 +22,13 @@ import box.shoe.gameutils.VisualizableEntity;
  * Created by Joseph on 10/23/2017.
  */
 
-public class Rope extends AbstractGameEngine
+public class RopeGame extends AbstractGameEngine
 {
     private double lastTouchX;
     private double lastTouchY;
 
     // Consts
-    private static final int TARGET_UPS = 30; //No need to make ups too high!
+    private static final int TARGET_UPS = 25; //No need to make ups too high!
     private Paintable wallPaintable;
     private Paintable coinPaintable;
 
@@ -43,10 +41,10 @@ public class Rope extends AbstractGameEngine
     private ParticleEffect part;
     public InterpolatableEntity effect;
 
-    public Rope(Context appContext, AbstractGameSurfaceView screen)
+    public RopeGame(Context appContext, AbstractGameSurfaceView screen)
     {
-        super(appContext, Rope.TARGET_UPS, screen);
-        scheduler = new GameTasker(Rope.TARGET_UPS);
+        super(appContext, RopeGame.TARGET_UPS, screen);
+        scheduler = new GameTasker(RopeGame.TARGET_UPS);
         walls = new LinkedList<>();
         coins = new LinkedList<>();
         rand = new Rand();
@@ -107,7 +105,7 @@ public class Rope extends AbstractGameEngine
             playerDead();
         }
 
-        player.velocity = (player.velocity.add(new Vector(0, 2)));
+        player.velocity = (player.velocity.add(new Vector(0, 2))); //TODO: use new acceleration functionality of Entities
         player.update();
 
         boolean passingWall = false;
@@ -154,11 +152,24 @@ public class Rope extends AbstractGameEngine
     @Override
     protected void saveGameState(GameState gameState)
     {
-        gameState.saveInterpolatableEntity(player);
+        // Save the player for interpolation.
+        gameState.saveInterpolatableEntity("player", player);
+
+        // Save all the walls for interpolation.
         for (InterpolatableEntity wall : walls)
         {
             gameState.saveInterpolatableEntity(wall);
         }
+        gameState.saveData("walls", walls);
+
+        // Save all the coins for interpolation.
+        for (InterpolatableEntity coin : coins)
+        {
+            gameState.saveInterpolatableEntity(coin);
+        }
+
+        // Save the score.
+        gameState.saveData("score", score);
     }
 
     private void playerDead()

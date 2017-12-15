@@ -12,7 +12,13 @@ import android.graphics.Point;
 public class InterpolatableEntity extends Entity
 {
     public double interpolatedX;
-    public double interpolatedY; //TODO: necessary to set interp X and Y to initial values? I don't think so, because they are always set before painting.
+    public double interpolatedY;
+
+    // Whether or not this has been interpolated by the Game Engine and therefore should be drawn.
+    // It is possible that an InterpolatableEntity exists in a GameState but has not been interpolated (e.g. it did not exist in the old GameState).
+    // This means that InterpolatableEntities that exist for exactly one update cycle may
+    // never be drawn (this makes sense, because such an object cannot have time to move, so we should not be using interpolation on it anyway).
+    public boolean interpolatedThisFrame = false;
 
     public InterpolatableEntity(double initialX, double initialY)
     {

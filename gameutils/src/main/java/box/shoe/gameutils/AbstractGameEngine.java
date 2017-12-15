@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Vibrator;
+import android.support.annotation.IntDef;
 import android.util.Log;
 import android.view.Choreographer;
 import android.view.Display;
@@ -13,6 +14,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -35,12 +38,16 @@ import box.gift.gameutils.R;
 
 public abstract class AbstractGameEngine extends AbstractEventDispatcher implements Cleanable
 {
-    private double refreshRate; //The times per second that the screen can redraw (hardware specific)
+    // Define the possible UPS options, which are factors of 1000 (so we get an even number of MS per update).
+    // This is not a hard requirement, and the annotation may be suppressed,
+    // at the risk of possible jittery frame display.
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef({1, 2, 4, 5, 8, 10, 20, 25, 40, 50, 100, 125, 200, 250, 500, 1000})
+    public @interface UPS_Options {} //Bug - @interface should be syntax highlighted annotation color (yellow), not keyword color (blue)
+
     private int targetUPS;
-    private long expectedUpdateTimeNS;
-    private long totalUpdateTimeNS;
-    private volatile long lastUpdateTimeNS; //In System.nanoTime timebase
-    private volatile long actualUpdateTimeNS;
+    private final long expectedUpdateTimeMS;
+    private final long expectedUpdateTimeNS;
 
     private final AbstractGameSurfaceView gameScreen;
     private volatile boolean started = false;
@@ -48,22 +55,20 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
     // Control
     private volatile boolean stopped = false;
-    private volatile boolean updateThreadStopped = false;
-    private volatile boolean frameThreadStopped = false;
     private volatile boolean paused = false;
     private volatile boolean frameThreadPaused = false;
     private volatile boolean updateThreadPaused = false;
     private volatile boolean oneFrameThenPause = false;
 
     // Threads
-    private Thread gameUpdateThread;
-    private Thread viewPaintThread;
+    private Thread updateThread;
+    private Thread frameThread;
 
     private volatile boolean wantToLaunch = false;
     private volatile boolean viewHasDimension = false;
 
     // Monitors
-    private final Integer updateAndFrameAndInputMonitor = new Integer(1);
+    private final Object updateAndFrameAndInputMonitor = new Object();
     private CountDownLatch pauseLatch;
 
     // Objs
@@ -77,26 +82,26 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     public volatile int score;
     private long vsyncOffsetNanos = 0; // Default of 0 if not high enough API to get he real value
 
-    public AbstractGameEngine(Context appContext, int targetUPS, AbstractGameSurfaceView screen) //target ups should divide evenly into 1000000000, updates are accurately caleld to within about 10ms
+    public AbstractGameEngine(Context appContext, @UPS_Options int targetUPS, AbstractGameSurfaceView screen) //target ups should divide evenly into 1000000000, updates are accurately caleld to within about 10ms
     {
         this.appContext = appContext;
 
         Display display = ((WindowManager) appContext.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
-        this.refreshRate = display.getRefreshRate();
+        //this.refreshRate = display.getRefreshRate();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
         {
             vsyncOffsetNanos = display.getAppVsyncOffsetNanos();
         }
 
         this.targetUPS = targetUPS;
-        this.expectedUpdateTimeNS = 1000000000 / this.targetUPS;
-        this.totalUpdateTimeNS = expectedUpdateTimeNS;
+        this.expectedUpdateTimeMS = 1000 / this.targetUPS;
+        this.expectedUpdateTimeNS = this.expectedUpdateTimeMS * 1000000;
 
         gameStates = new LinkedList<>();
         random = new Rand();
         rumble = (Vibrator) appContext.getSystemService(Context.VIBRATOR_SERVICE);
 
-        gameUpdateThread = new Thread(new Runnable()
+        updateThread = new Thread(new Runnable()
         {
             @Override
             public void run()
@@ -105,7 +110,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             }
         }, appContext.getString(R.string.update_thread_name));
 
-        viewPaintThread = new Thread(new Runnable()
+        frameThread = new Thread(new Runnable()
         {
             @Override
             public void run()
@@ -132,6 +137,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             @Override
             public boolean onTouch(View v, MotionEvent event)
             {
+                v.performClick();
                 // Only use touch event if not paused TODO: maybe change this behavior? the idea is that pause menu handled by ui thread, bad idea?
                 if (isPlaying())
                 {
@@ -176,8 +182,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             // 1) Do game logic
             // 2) Update surface view
 
-            gameUpdateThread.start();
-            viewPaintThread.start();
+            updateThread.start();
+            frameThread.start();
         }
     }
 
@@ -190,75 +196,72 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
     private void runUpdates()
     {
-        while (!stopped)
+        Looper.prepare();
+        final Handler updateHandler = new Handler();
+
+        Runnable updateCallback = new Runnable()
         {
-            long startTime = System.nanoTime();
-            synchronized (updateAndFrameAndInputMonitor)
+            long startTime = 0;
+            @Override
+            public void run()
             {
-                L.w("Update V", "thread");
-                //Log.d("Gonna update", "now, set lastupdatetime to: " + lastUpdateTimeNS);
-                // Run frame code
-                update();
+                Log.d("ela", String.valueOf(System.nanoTime() - startTime));
+                // Keep track of what time it is now. Goes first to get most accurate timing.
+                startTime = System.nanoTime();
 
-                // Save game state
-                GameState gameState = new GameState();
-                saveGameState(gameState);
-                gameState.timeStamp = startTime;
-                gameStates.add(gameState);
+                // Schedule next update. Goes second to get as accurate a possible updates.
+                updateHandler.removeCallbacksAndMessages(null);
+                updateHandler.postDelayed(this, expectedUpdateTimeMS); //TODO: inject stutter updates to test various drawing schemes
 
-                long currentTimeNS = System.nanoTime();
-                actualUpdateTimeNS = currentTimeNS - lastUpdateTimeNS;
-                lastUpdateTimeNS = currentTimeNS;
-                //Log.d("UPDATE",actualUpdateTimeNS+"");
-
-                while (paused)
+                // Stop thread.
+                if (stopped)
                 {
-                    try
-                    {
-                        if (!updateThreadPaused)
-                        {
-                            pauseLatch.countDown();
-                        }
-                        updateThreadPaused = true;
-                        updateAndFrameAndInputMonitor.wait();
-                    }
-                    catch (InterruptedException e)
-                    {
-                        e.printStackTrace();
-                    }
+                    updateHandler.removeCallbacksAndMessages(null);
+                    Looper.myLooper().quit();
+                    return;
                 }
-                updateThreadPaused = false;
-                L.w("Update ^", "thread");
-            }
-            long endTime = System.nanoTime();
-            totalUpdateTimeNS = endTime - startTime;
 
-            //Figure out how much to delay based on how much time is left over in this frame (or no delay at all if we went over the time limit)
-            int amountToDelayNS = (int) Math.max(expectedUpdateTimeNS - totalUpdateTimeNS, 0);
+                synchronized (updateAndFrameAndInputMonitor)
+                {
+                    L.d("Update V", "thread");
 
-            if (amountToDelayNS == 0)
-            {
-                Log.w("Update", "Update took too long. Going immediately to next update");
-            }
+                    // Do a game update.
+                    update();
 
-            /*if (amountToDelayNS+totalUpdateTimeNS != 40000000)
-            {
-                Log.d("ERROR", "ERROR");
-                Log.d("TOTAL", amountToDelayNS + totalUpdateTimeNS + "");
-                Log.d("delay", amountToDelayNS + "");
-            }*/
-            int amountToDelayMS = amountToDelayNS / 1000000;
-            amountToDelayNS %= 1000000;
-            try {
-                Thread.sleep(amountToDelayMS, amountToDelayNS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+                    // Save game state
+                    GameState gameState = new GameState();
+                    saveGameState(gameState);
+                    gameState.timeStamp = startTime;
+                    gameStates.add(gameState);
+
+                    // Pause game (postDelayed runnable should not run while this thread is waiting, so no issues there)
+                    while (paused)
+                    {
+                        try
+                        {
+                            if (!updateThreadPaused)
+                            {
+                                pauseLatch.countDown();
+                            }
+                            updateThreadPaused = true;
+                            updateAndFrameAndInputMonitor.wait();
+                        }
+                        catch (InterruptedException e)
+                        {
+                            e.printStackTrace();
+                        }
+                    }
+                    updateThreadPaused = false;
+                    L.d("Update ^", "thread");
+                }
             }
-        }
-        updateThreadStopped = true;
+        };
+
+        updateHandler.post(updateCallback);
+        Looper.loop();
     }
 
-    private void runFrames() //TODO: consume gameStates when they are used up (not necessarily when new one is produced!)
+    private void runFrames()
     {
         Looper.prepare();
         vsync = Choreographer.getInstance();
@@ -305,7 +308,15 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                         vsync.removeFrameCallback(this);
                         if (gameScreen.preparedToVisualize())
                         {
-                            gameScreen.visualize(lastVisualizedGameState);
+                            if (lastVisualizedGameState != null)
+                            {
+                                gameScreen.visualize(lastVisualizedGameState);
+                            }
+                            else
+                            {
+                                // Unlock the canvas without posting anything.
+                                gameScreen.unlockCanvasAndClear();
+                            }
                         }
                         Looper.myLooper().quit();
                         return;
@@ -338,14 +349,12 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     // Paint frame
                     if (gameScreen.preparedToVisualize())
                     {
-                        paintedFrame = true;
-
                         GameState oldState;
                         GameState newState;
 
                         while (true)
                         {
-                            L.d("GameStates: " + gameStates.size(), "thread");
+                            L.d("GameStates: " + gameStates.size(), "new");
                             if (gameStates.size() >= 2) // We need two states to draw (interpolate between them)
                             {
                                 // Get the first two saved states
@@ -353,16 +362,23 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 newState = gameStates.get(1);
 
                                 // Time that passed between the game states in question.
-                                long timeBetween = newState.timeStamp - oldState.timeStamp;
+                                //long timeBetween = newState.timeStamp - oldState.timeStamp;
 
                                 // Interpolate based on time that has past since the second active game state
                                 // as a fraction of the time between the two active states.
-                                double interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) timeBetween);
+                                //double interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) timeBetween);
+                                double interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) expectedUpdateTimeNS);
 
                                 // If we are up to the new update, remove the old one as it is not needed.
-                                if (interpolationRatio > 1)
+                                if (interpolationRatio >= 1)
                                 {
-                                    gameStates.remove(0);
+                                    L.d("Removing a state we have used up", "new");
+                                    // Remove the old update.
+                                    if (gameStates.size() >= 1)
+                                    {
+                                        //gameStates.get(0).cleanup();
+                                        gameStates.remove(0);
+                                    }
                                     continue;
                                 }
                                 else
@@ -370,16 +386,16 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                     Map<InterpolatableEntity, InterpolatableState> oldInterpolatableEntitiesMap = oldState.getInterpolatableEntitiesMap();
                                     Map<InterpolatableEntity, InterpolatableState> newInterpolatableEntitiesMap = newState.getInterpolatableEntitiesMap();
 
-                                    Set<Map.Entry<InterpolatableEntity, InterpolatableState>> oldInterpolatableEntitiesMapEntrySet = oldInterpolatableEntitiesMap.entrySet();
+                                    Set<Map.Entry<InterpolatableEntity, InterpolatableState>> newInterpolatableEntitiesMapEntrySet = newInterpolatableEntitiesMap.entrySet();
 
-                                    for (Map.Entry<InterpolatableEntity, InterpolatableState> oldEntry : oldInterpolatableEntitiesMapEntrySet)
+                                    for (Map.Entry<InterpolatableEntity, InterpolatableState> newEntry : newInterpolatableEntitiesMapEntrySet)
                                     {
-                                        InterpolatableEntity key = oldEntry.getKey(); // We can define this now because only on rare occasion will this not be used.
+                                        InterpolatableEntity key = newEntry.getKey(); // We can define this now because only on rare occasion will this not be used.
                                         // If this entry is common to both sets
-                                        if (newInterpolatableEntitiesMap.containsKey(key))
+                                        if (oldInterpolatableEntitiesMap.containsKey(key))
                                         {
-                                            InterpolatableState oldValue = oldEntry.getValue();
-                                            InterpolatableState newValue = newInterpolatableEntitiesMap.get(key);
+                                            InterpolatableState newValue = newEntry.getValue();
+                                            InterpolatableState oldValue = oldInterpolatableEntitiesMap.get(key);
 
                                             double interpolatedX = ((newValue.x - oldValue.x) * interpolationRatio) + oldValue.x;
                                             double interpolatedY = ((newValue.y - oldValue.y) * interpolationRatio) + oldValue.y;
@@ -387,20 +403,29 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                             //TODO: maybe find another way to communicate where to paint the entity?
                                             key.interpolatedX = interpolatedX;
                                             key.interpolatedY = interpolatedY;
+
+                                            key.interpolatedThisFrame = true;
+                                        }
+                                        else
+                                        {
+                                            key.interpolatedThisFrame = false;
                                         }
                                     }
 
                                     gameScreen.visualize(newState);
+                                    paintedFrame = true;
                                     lastVisualizedGameState = newState;
                                     break;
                                 }
                             }
                             else
                             {
-                                Log.w("T", "We want to draw but there aren't enough new updates! Using old state.");
+                                Log.w("T", "We want to draw but there aren't enough new updates!");
                                 if (lastVisualizedGameState != null)
                                 {
                                     gameScreen.visualize(lastVisualizedGameState);
+                                    paintedFrame = true;
+                                    Log.w("T", " Using previous valid state.");
                                 }
                                 break;
                             }
@@ -417,7 +442,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         };
         vsync.postFrameCallback(callback);
         Looper.loop();
-        frameThreadStopped = true;
     }
 
 
@@ -443,8 +467,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             {
                 try
                 {
-                    gameUpdateThread.join();
-                    viewPaintThread.join();
+                    updateThread.join();
+                    frameThread.join();
                     L.d("Two threads stopped", "stop");
                 }
                 catch (InterruptedException e)
@@ -471,8 +495,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         vsync = null;
         random = null;
         rumble = null;
-        gameUpdateThread = null;
-        viewPaintThread = null;
+        updateThread = null;
+        frameThread = null;
 
         //Cleanup gameScreen TODO: more
         gameScreen.setOnTouchListener(new View.OnTouchListener()
@@ -480,6 +504,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             @Override
             public boolean onTouch(View v, MotionEvent event)
             {
+                v.performClick();
                 return false;
             }
         });
@@ -490,7 +515,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
      */
     public void pauseGame() //TODO: should only be called from main thread?
     {
-        if (Thread.currentThread().equals(gameUpdateThread) || Thread.currentThread().equals(viewPaintThread))
+        if (Thread.currentThread().equals(updateThread) || Thread.currentThread().equals(frameThread))
         {
             paused = true;
             return;

@@ -28,7 +28,7 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        L.LOG = true;
+        //L.LOG = true;
         L.disableChannel("thread");
         L.disableChannel("stop");
         MainActivity.appContext = getApplicationContext();
@@ -69,8 +69,9 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
                     setContentView(R.layout.game_layout);
                     gameFrame = ((ViewGroup) findViewById(R.id.gameFrame));
                     gameFrame.removeAllViews();
-                    gameScreen = new RopeSurfaceView(appContext);
-                    game = new Rope(appContext, gameScreen);
+                    gameScreen = new RopeScreen(appContext);
+                    L.d("Creating new rope game", "trace");
+                    game = new RopeGame(appContext, gameScreen);
                     game.addEventListener(GameEventConstants.GAME_OVER, new Runnable()
                     {
                         @Override
