@@ -14,6 +14,7 @@ import box.shoe.gameutils.AbstractGameSurfaceView;
 import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.InterpolatableEntity;
 import box.shoe.gameutils.GameState;
+import box.shoe.gameutils.L;
 import box.shoe.gameutils.VisualizableEntity;
 
 /**
@@ -41,9 +42,6 @@ public class RopeScreen extends AbstractGameSurfaceView
         if (player.interpolatedThisFrame)
             player.paint(canvas);
 
-        /*if (player != null)
-            player.paint(canvas);*/
-
 /*
         // Particle
         if (data.effect != null)
@@ -54,7 +52,9 @@ public class RopeScreen extends AbstractGameSurfaceView
         for (VisualizableEntity wall : walls)
         {
             if (wall.interpolatedThisFrame)
+            {
                 wall.paint(canvas);
+            }
         }
 /*
         // Coins
@@ -63,13 +63,13 @@ public class RopeScreen extends AbstractGameSurfaceView
         {
             coin.paint(canvas, interpolationRatio);
         }
-
+*/
         // Top and Bottom
         paint.setColor(Color.RED);
         int thickness = 14;
         canvas.drawRect(0, 0, getWidth(), thickness, paint);
         canvas.drawRect(0, getHeight() - thickness, getWidth(), getHeight(), paint);
-*/
+
         // Score
         paint.setTextSize(50);
         paint.setColor(Color.BLUE);

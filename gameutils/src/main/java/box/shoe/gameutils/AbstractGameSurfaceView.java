@@ -22,7 +22,6 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
 {
     private SurfaceHolder holder;
     private volatile boolean surfaceReady = false;
-    //private AbstractGameEngine abstractData = null;
     private Runnable dimensionListener;
     public Paint paint;
     private boolean preparedToVisualize = false;
@@ -80,6 +79,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
 
     public void unlockCanvasAndClear()
     {
+        L.d("unlock canva and clear called", "clear");
         if (preparedToVisualize())
         {
             canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);

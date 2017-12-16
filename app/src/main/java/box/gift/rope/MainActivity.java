@@ -28,9 +28,10 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //L.LOG = true;
+        L.LOG = true;
         L.disableChannel("thread");
         L.disableChannel("stop");
+        L.disableChannel("new");
         MainActivity.appContext = getApplicationContext();
         print("CREATE");
         requestWindowFeature(Window.FEATURE_NO_TITLE);

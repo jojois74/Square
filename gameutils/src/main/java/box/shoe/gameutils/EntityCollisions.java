@@ -8,19 +8,18 @@ package box.shoe.gameutils;
 
 public class EntityCollisions
 {
-    //Should not use visual params, or at least respect reg point.
     public static boolean collideRectangle(Entity a, Entity b)
     {
         // Entity a
-        double minXA = a.x;
+        double minXA = a.x - a.registrationPoint.x;
         double maxXA = minXA + a.width;
-        double minYA = a.y;
+        double minYA = a.y - a.registrationPoint.y;
         double maxYA = minYA + a.height;
 
         // InterpolatableEntity b
-        double minXB = b.x;
+        double minXB = b.x - b.registrationPoint.x;
         double maxXB = minXB + b.width;
-        double minYB = b.y;
+        double minYB = b.y - b.registrationPoint.y;
         double maxYB = minYB + b.height;
 
         return (

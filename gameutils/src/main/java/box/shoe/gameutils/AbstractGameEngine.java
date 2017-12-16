@@ -27,15 +27,12 @@ import box.gift.gameutils.R;
 /**
  * Created by Joseph on 10/23/2017.
  *
- * The game engine runs game update code on a new thread (how often it runs is supplied by the UPS parameter in the constructor)
- * And it runs visual update code on another new thread, painted to the supplied GameSurfaceView
- * It paints every new VSYNC (before a new frame wants to be drawn)
- * Therefore game updates may happen less frequently than the game is painted (and the two are not aligned)
- * So the engine attempts to make interpolations in order to draw.
- * This means that rendering will always be at most one frame behind user input (not a big deal!)
- * This is because we interpolate between the previous update and the latest update
+ * The Game Engine uses two threads. One for game updates, and one to paint frames.
+ * Game updates are run at a frequency determined by the supplied UPS given in the constructor.
+ * Frames are painted at each new VSYNC (Screen refresh), supplied by internal Choreographer.
+ * Because these are not aligned, the engine interpolates between two game states for frame painting based on time,
+ * and gives the interpolated game state to the AbstractGameSurfaceView supplied to the constructor.
  */
-
 public abstract class AbstractGameEngine extends AbstractEventDispatcher implements Cleanable
 {
     // Define the possible UPS options, which are factors of 1000 (so we get an even number of MS per update).
@@ -43,44 +40,79 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     // at the risk of possible jittery frame display.
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({1, 2, 4, 5, 8, 10, 20, 25, 40, 50, 100, 125, 200, 250, 500, 1000})
-    public @interface UPS_Options {} //Bug - @interface should be syntax highlighted annotation color (yellow), not keyword color (blue)
+    public @interface UPS_Options {} //Bug - '@interface' should be syntax highlighted annotation color (yellow), not keyword color (blue). ( Android Studio :D )
 
-    private int targetUPS;
+    // Number of Updates Per Second that we would like to receive.
+    // There are timing accuracy limitations,
+    // and it is possible for the updates to take too long
+    // for this to be possible (lag), hence 'target.'
+    private final int targetUPS;
+
+    // Based on the targetUPS we can define how long we expect each update to take.
     private final long expectedUpdateTimeMS;
     private final long expectedUpdateTimeNS;
 
+    // The screen which will display a representation of the state of the game.
     private final AbstractGameSurfaceView gameScreen;
-    private volatile boolean started = false;
+
     private Context appContext;
 
-    // Control
+    // Control - try to mitigate use of volatile variables when possible.
+    // (issue is not the number of volatile variables, rather how often they
+    // are read causing memory to be flushed by the thread that set it).
+    private volatile boolean started = false;
     private volatile boolean stopped = false;
     private volatile boolean paused = false;
     private volatile boolean frameThreadPaused = false;
     private volatile boolean updateThreadPaused = false;
     private volatile boolean oneFrameThenPause = false;
+    private volatile boolean wantToLaunch = false;
+    private volatile boolean viewHasDimension = false;
 
     // Threads
     private Thread updateThread;
     private Thread frameThread;
 
-    private volatile boolean wantToLaunch = false;
-    private volatile boolean viewHasDimension = false;
-
-    // Monitors
+    // Concurrent - for simplicity, define as few as possible.
     private final Object updateAndFrameAndInputMonitor = new Object();
-    private CountDownLatch pauseLatch;
+    private CountDownLatch pauseLatch; // Makes sure all necessary threads pause before returning pauseGame.
 
-    // Objs
+    // Objs - remember to cleanup those that can be!
     private Choreographer vsync;
     protected Rand random;
     protected Vibrator rumble;
-    private List<GameState> gameStates; // We want to use it like a queue, but we need to access the first two elements, so it cannot be one
+    private List<GameState> gameStates; // We want to use it like a queue, but we need to access the first two elements, so it cannot be one.
     private GameState lastVisualizedGameState;
 
     // Etc
     public volatile int score;
-    private long vsyncOffsetNanos = 0; // Default of 0 if not high enough API to get he real value
+
+    // Fixed display mode - display will attempt to paint
+    // pairs of updates for a fixed amount of time (expectedUpdateDelayNS)
+    // regardless of the amount of time that passed between
+    // the generation of the two updates. When an update
+    // happens too quickly or slowly, this will cut short
+    // or artificially lengthen the painting of a pair of updates
+    // because the next update comes too early or late.
+    // Pro: looks better when an occasional update comes too early or too late.
+    private static final int DIS_MODE_FIX_UPDATE_DISPLAY_DURATION = 0;
+
+    // Varied display mode - display will lengthen or shorten
+    // the amount of time it takes to display a pair of updates.
+    // When an update happens too quickly or slowly, this will
+    // cause quite a jitter.
+    // Pro: When many updates in a row come to early or late, instead
+    // of jittering the display will simply speed up or slow down
+    // to keep pace with the updates, which looks very nice.
+    private static final int DIS_MODE_VAR_UPDATE_DISPLAY_DURATION = 1;
+
+    // Which display mode the engine is currently using.
+    private int displayMode = DIS_MODE_FIX_UPDATE_DISPLAY_DURATION;
+
+    // Choreographer tells you a fake timeStamp for beginning of vsync. It really occurs at (frameTimeNanos - vsyncOffsetNanos).
+    // This is not a huge deal, but if we can correct for it, why not?
+    // Default it to 0 if our API level is not high enough to get the real value.
+    private long vsyncOffsetNanos = 0;
 
     public AbstractGameEngine(Context appContext, @UPS_Options int targetUPS, AbstractGameSurfaceView screen) //target ups should divide evenly into 1000000000, updates are accurately caleld to within about 10ms
     {
@@ -101,6 +133,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         random = new Rand();
         rumble = (Vibrator) appContext.getSystemService(Context.VIBRATOR_SERVICE);
 
+        //Setup the 'Updates' thread.
         updateThread = new Thread(new Runnable()
         {
             @Override
@@ -110,6 +143,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             }
         }, appContext.getString(R.string.update_thread_name));
 
+        //Setup the 'Frames' thread.
         frameThread = new Thread(new Runnable()
         {
             @Override
@@ -168,7 +202,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         wantToLaunch = false;
         if (started)
         {
-            // May not start a game that is already started
+            // May not start a game that is already started.
             throw new IllegalStateException("Game already started!");
         }
         else
@@ -179,9 +213,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             initialize();
 
             // We will launch two threads.
-            // 1) Do game logic
-            // 2) Update surface view
-
+            // 1) Do game logic (game updates)
+            // 2) Alert surface view (paint frames)
             updateThread.start();
             frameThread.start();
         }
@@ -189,27 +222,34 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
     /**
      * Called once before updates and frames begin.
-     * In this call, we are guaranteed that the surfaceViiew (and the game) has dimensions
-     * So do any initialization that involves getGameWidth/getGameHeight.
+     * In this call, we are guaranteed that the surfaceView (and thus the game) has dimensions,
+     * so do any initialization that involves getGameWidth/getGameHeight.
      */
-    protected abstract void initialize(); //Always called once before update() calls first begin
+    protected abstract void initialize(); //TODO: if at all possible, find a way to make abstract methods only callable by subclass.... ('protected' gives package access, why....)
 
     private void runUpdates()
     {
+        // Make sure that we are on updateThread.
+        if (!Thread.currentThread().getName().equals(appContext.getString(R.string.update_thread_name)))
+        {
+            throw new IllegalThreadStateException("Can only be called from updateThread!");
+        }
+
         Looper.prepare();
         final Handler updateHandler = new Handler();
 
         Runnable updateCallback = new Runnable()
         {
-            long startTime = 0;
             @Override
             public void run()
             {
-                Log.d("ela", String.valueOf(System.nanoTime() - startTime));
                 // Keep track of what time it is now. Goes first to get most accurate timing.
-                startTime = System.nanoTime();
+                long startTime = System.nanoTime();
 
-                // Schedule next update. Goes second to get as accurate a possible updates.
+                // Schedule next update. Goes second to get as accurate as possible updates.
+                // We do it at the start to make sure we are waiting a precise amount of time
+                // (as precise as we can get with postDelayed). This means we manually remove
+                // the callback if the game stops.
                 updateHandler.removeCallbacksAndMessages(null);
                 updateHandler.postDelayed(this, expectedUpdateTimeMS); //TODO: inject stutter updates to test various drawing schemes
 
@@ -221,6 +261,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     return;
                 }
 
+                // Acquire the monitor lock, because we cannot update the game at the same time we are trying to draw it.
                 synchronized (updateAndFrameAndInputMonitor)
                 {
                     L.d("Update V", "thread");
@@ -228,7 +269,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     // Do a game update.
                     update();
 
-                    // Save game state
+                    // Save game state for interpolation
                     GameState gameState = new GameState();
                     saveGameState(gameState);
                     gameState.timeStamp = startTime;
@@ -253,6 +294,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     }
                     updateThreadPaused = false;
                     L.d("Update ^", "thread");
+                    //TODO: if updates are consistently taking too long (or even too short!) we can switch visualization modes.
                 }
             }
         };
@@ -263,10 +305,16 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
     private void runFrames()
     {
+        // Make sure that we are on frameThread.
+        if (!Thread.currentThread().getName().equals(appContext.getString(R.string.frame_thread_name)))
+        {
+            throw new IllegalThreadStateException("Can only be called from frameThread!");
+        }
+
         Looper.prepare();
         vsync = Choreographer.getInstance();
-        //final Handler viewPaintThreadHandler = new Handler();
-        Choreographer.FrameCallback callback = new Choreographer.FrameCallback()
+
+        Choreographer.FrameCallback frameCallback = new Choreographer.FrameCallback()
         {
             @Override
             public void doFrame(long frameTimeNanos)
@@ -361,13 +409,25 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 oldState = gameStates.get(0);
                                 newState = gameStates.get(1);
 
-                                // Time that passed between the game states in question.
-                                //long timeBetween = newState.timeStamp - oldState.timeStamp;
-
                                 // Interpolate based on time that has past since the second active game state
                                 // as a fraction of the time between the two active states.
                                 //double interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) timeBetween);
-                                double interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) expectedUpdateTimeNS);
+                                double interpolationRatio;
+
+                                if (displayMode == DIS_MODE_FIX_UPDATE_DISPLAY_DURATION)
+                                {
+                                    interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) expectedUpdateTimeNS);
+                                }
+                                else if (displayMode == DIS_MODE_VAR_UPDATE_DISPLAY_DURATION)
+                                {
+                                    // Time that passed between the game states in question.
+                                    long timeBetween = newState.timeStamp - oldState.timeStamp;
+                                    interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) timeBetween);
+                                }
+                                else
+                                {
+                                    throw new IllegalStateException("Engine is in an invalid displayMode.");
+                                }
 
                                 // If we are up to the new update, remove the old one as it is not needed.
                                 if (interpolationRatio >= 1)
@@ -376,7 +436,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                     // Remove the old update.
                                     if (gameStates.size() >= 1)
                                     {
-                                        //gameStates.get(0).cleanup();
+                                        //gameStates.get(0).cleanup(); //TODO: find way to clean up without causing error wen lastVisualizedGameState is used
                                         gameStates.remove(0);
                                     }
                                     continue;
@@ -440,7 +500,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 }
             }
         };
-        vsync.postFrameCallback(callback);
+        vsync.postFrameCallback(frameCallback);
         Looper.loop();
     }
 

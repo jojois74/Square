@@ -74,11 +74,11 @@ public class RopeGame extends AbstractGameEngine
                     VisualizableEntity wall = new VisualizableEntity(getGameWidth(), third, wallPaintable);
                     walls.add(wall);
                 }
-                if (hole != 2)
+                /*if (hole != 2)
                 {
                     VisualizableEntity wall = new VisualizableEntity(getGameWidth(), 2 * third, wallPaintable);
                     walls.add(wall);
-                }
+                }*/
 
                 int rand = random.randomBetween(0, 3);
                 int margin = 40;
@@ -114,7 +114,7 @@ public class RopeGame extends AbstractGameEngine
         {
             VisualizableEntity wall = iterator.next();
             double oldX = wall.x;
-            wall.velocity = new Vector(-21, 0);
+            wall.velocity = new Vector(-1, 0);
             wall.update();
             if (oldX > player.x && wall.x < player.x)
             {

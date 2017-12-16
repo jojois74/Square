@@ -39,7 +39,6 @@ public class VisualizableEntity extends InterpolatableEntity implements Cleanabl
     public void paint(Canvas canvas)
     {
         // Display this Entity by painting the paintable at current interpolated x, y coordinates, offset by the registration point.
-        L.d(paintable.getClass().getName(), "stop");
         paintable.paint(toCoord(interpolatedX - registrationPoint.x), toCoord(interpolatedY - registrationPoint.y), canvas);
 
         // And then (or before) can paint any other thing relevant to this entity in subclass (call super at some point!)
