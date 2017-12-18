@@ -2,20 +2,14 @@ package box.gift.rope;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
-import android.view.WindowManager;
-import android.widget.TextView;
 
 import box.shoe.gameutils.L;
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
-import box.shoe.gameutils.GameEventConstants;
 
 
 public class MainActivity extends Activity //TODO: destructive callbacks can do work before calling super, do not unpause when game unpauses, look at lunar landing ex
@@ -27,6 +21,7 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     private Runnable surfaceChangedListener;
 
     private ViewGroup gameFrame;
+    private View pauseMenu;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -154,8 +149,30 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
         }
         else
         {
-            gameEngine.unpauseGame();
+            // Show the pause menu
+            showPauseMenu();
+
+            // Tell the game to paint a single frame so that we can see the game.
+            gameEngine.paintOneFrame(); //TODO: timing issues cause frame jumps and visual jumps! low priority fix
         }
+    }
+
+    public void resumeGame(View view)
+    {
+        hidePauseMenu();
+        gameEngine.resumeGame();
+    }
+
+    // Should work even if pause menu is already showing.
+    private void showPauseMenu()
+    {
+        pauseMenu = findViewById(R.id.pauseMenu);
+        pauseMenu.setVisibility(View.VISIBLE);
+    }
+
+    private void hidePauseMenu()
+    {
+        pauseMenu.setVisibility(View.GONE);
     }
 
 /*
@@ -217,13 +234,6 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
         });
     }
     */
-/*
-    @Override
-    protected void onStart()
-    {
-        super.onStart();
-        print("START");
-    }
 
     protected void onRestoreInstanceState(Bundle savedInstanceState)
     {
@@ -232,61 +242,9 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     }
 
     @Override
-    protected void onResume()
-    {
-        print("resume");
-        super.onResume();
-        print("RESUME");
-        if (game != null && game.isActive() && !game.isPlaying())
-        {
-            // Don't unpause the game just yet, but we would like to paint one frame behind the pause menu_layout
-            //game.unpauseGame();
-
-            print("Painting a single frame.");
-            game.paintOneFrame();
-        }
-    }
-
-    @Override
-    protected void onPause()
-    {
-        print("PAUSE");
-        if (game != null && game.isPlaying())
-        {
-            game.pauseGame();
-            print("after game pause");
-            //(findViewById(R.id.pauseMenu)).setVisibility(View.VISIBLE);
-        }
-        super.onPause();
-        print("after super pause");
-    }
-
-    public void continueGame(View view)
-    {
-        print("CONTINUE");
-        game.unpauseGame();
-        (findViewById(R.id.pauseMenu)).setVisibility(View.INVISIBLE);
-    }
-
-    @Override
-    protected void onStop()
-    {
-        print("STOP: " + Thread.currentThread().getName());
-        super.onStop();
-    }
-
-    @Override
-    protected void onRestart()
-    {
-        super.onRestart();
-        print("RESTART");
-    }
-
-    @Override
     protected void onSaveInstanceState(Bundle savedInstanceState) {
         super.onSaveInstanceState(savedInstanceState);
     }
-*/
     public static void print(String msg)
     {
         Log.d("SQUARE", msg);

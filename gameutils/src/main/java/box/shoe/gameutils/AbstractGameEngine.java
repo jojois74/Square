@@ -481,6 +481,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 else
                                 {
                                     gameScreen.unlockCanvasAndClear();
+                                    paintedFrame = true; // This shoulc count for the purpose of paintOneFrame because there is never going to be another valid GameState anyway if there isn't already
                                 }
                                 break;
                             }
@@ -522,7 +523,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         {
             L.d("unpause in stop", "rewrite2");
             // We will need to unpause the game if we are currently paused in order to stop it.
-            unpauseGame();
+            resumeGame();
         }
 
         try
@@ -632,7 +633,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         L.d("after pausing in abstract game engine", "pause");
     }
 
-    public void unpauseGame()
+    public void resumeGame()
     {
         if (!isActive())
         {
