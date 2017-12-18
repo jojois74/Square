@@ -66,28 +66,26 @@ public class RopeGame extends AbstractGameEngine
                 int hole = rand.randomBetween(0, 2);
                 if (hole != 0)
                 {
-                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), 0, wallPaintable);
+                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), 0, 25, third, wallPaintable);
                     walls.add(wall);
                 }
                 if (hole != 1)
                 {
-                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), third, wallPaintable);
+                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), third, 25, third, wallPaintable);
                     walls.add(wall);
                 }
-                /*if (hole != 2)
+                if (hole != 2)
                 {
-                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), 2 * third, wallPaintable);
+                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), 2 * third, 25, third, wallPaintable);
                     walls.add(wall);
-                }*/
+                }
 
-                int rand = random.randomBetween(0, 3);
+                int rand = random.randomBetween(0, 0);
                 int margin = 40;
                 int randHeight = random.randomBetween(margin, getGameHeight() - margin);
                 if (rand == 0)
                 {
-                    coins.add((new VisualizableEntity(getGameWidth() * 1.3, randHeight, 80, 80, coinPaintable))
-                            .setDisplayWidth(80)
-                            .setDisplayHeight(80));
+                    coins.add((new VisualizableEntity(getGameWidth() * 1.3, randHeight, 80, 80, coinPaintable)));
                 }
             }
         };
@@ -105,7 +103,6 @@ public class RopeGame extends AbstractGameEngine
             playerDead();
         }
 
-        player.velocity = (player.velocity.add(new Vector(0, 2))); //TODO: use new acceleration functionality of Entities
         player.update();
 
         boolean passingWall = false;
@@ -114,15 +111,15 @@ public class RopeGame extends AbstractGameEngine
         {
             VisualizableEntity wall = iterator.next();
             double oldX = wall.x;
-            wall.velocity = new Vector(-1, 0);
+            wall.velocity = new Vector(-21, 0);
             wall.update();
             if (oldX > player.x && wall.x < player.x)
             {
                 passingWall = true;
-                if (player.y > wall.y && player.y < wall.y + wall.getDisplayHeight())
-                {
-                    playerDead();
-                }
+            }
+            if (EntityCollisions.collideRectangle(player, wall))
+            {
+                playerDead();
             }
             if (wall.x + wall.getDisplayWidth() < 0)
             {
@@ -155,7 +152,7 @@ public class RopeGame extends AbstractGameEngine
         // Save the player for interpolation.
         gameState.saveInterpolatableEntity("player", player);
 
-        // Save all the walls for interpolation.
+        // Save all the walls for interpolation. //TODO: function in GameState to do collections
         for (InterpolatableEntity wall : walls)
         {
             gameState.saveInterpolatableEntity(wall);
@@ -167,6 +164,7 @@ public class RopeGame extends AbstractGameEngine
         {
             gameState.saveInterpolatableEntity(coin);
         }
+        gameState.saveData("coins", coins);
 
         // Save the score.
         gameState.saveData("score", score);
@@ -175,8 +173,7 @@ public class RopeGame extends AbstractGameEngine
     private void playerDead()
     {
         MainActivity.print("DEAD");
-        stopGame();
-        MainActivity.print("stop GAME RETURNED");
+        //stopGame();
     }
 
     @Override

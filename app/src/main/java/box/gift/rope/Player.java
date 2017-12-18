@@ -14,6 +14,6 @@ public class Player extends VisualizableEntity
 
     public Player(double initialX, double initialY)
     {
-        super(initialX, initialY, new PlayerPaintable());
+        super(initialX, initialY, 60, 60, Vector.ZERO, new Vector(0, 2), new PlayerPaintable());
     }
 }

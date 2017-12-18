@@ -14,7 +14,7 @@ import java.util.HashMap;
 public class L
 {
     // Determines whether or not we will send any output to the console
-    public static boolean LOG = false;
+    public static boolean LOG = true;
 
     // Saves log channels along with their state of activity (enabled=true or disabled=false)
     private static HashMap<String, Boolean> logChannels = new HashMap<>();

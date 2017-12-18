@@ -21,26 +21,144 @@ import box.shoe.gameutils.GameEventConstants;
 public class MainActivity extends Activity //TODO: destructive callbacks can do work before calling super, do not unpause when game unpauses, look at lunar landing ex
 {//TODO: when back button is pressed it should safely pause like normal
     public static Context appContext;
-    private AbstractGameEngine game;
+    private AbstractGameEngine gameEngine;
     private AbstractGameSurfaceView gameScreen;
+
+    private Runnable surfaceChangedListener;
+
     private ViewGroup gameFrame;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        print("CREATE");
         super.onCreate(savedInstanceState);
+
+        MainActivity.appContext = getApplicationContext();
+
+        //L.disableChannel("trace");
+        L.disableChannel("thread");
+        L.disableChannel("new");
+        L.disableChannel("rewrite");
+        L.disableChannel("rewrite2");
+
+        surfaceChangedListener = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                if (!gameEngine.isActive()) //TODO: implies that a stopped game can be run again?
+                {
+                    print("Received surfaceChanged callback.");
+                    gameEngine.startGame();
+                    gameScreen.unregisterSurfaceChangedListener();
+                }
+            }
+        };
+
+        showMainMenuLayout();
+/*
         L.LOG = true;
         L.disableChannel("thread");
         L.disableChannel("stop");
         L.disableChannel("new");
-        MainActivity.appContext = getApplicationContext();
-        print("CREATE");
-        requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
-        SharedPreferences pref = getPreferences(Context.MODE_PRIVATE);
-        setupMenu(-1, pref.getInt("best", 0));
+*/
+        //SharedPreferences pref = getPreferences(Context.MODE_PRIVATE);
+       // setupMenu(-1, pref.getInt("best", 0));
     }
 
+    private void showMainMenuLayout()
+    {
+        setContentView(R.layout.menu_layout);
+    }
+
+    public void mainMenuClicked(View view)
+    {
+        print("CLICK");
+
+        showGameLayout();
+        createGame();
+        showGame();
+    }
+
+    private void showGameLayout()
+    {
+        setContentView(R.layout.game_layout);
+        gameFrame = findViewById(R.id.gameFrame);
+    }
+
+    private void createGame()
+    {
+        gameScreen = new RopeScreen(appContext, surfaceChangedListener);
+        gameEngine = new RopeGame(appContext, gameScreen);
+    }
+
+    private void showGame()
+    {
+        gameFrame.removeAllViews();
+        gameFrame.addView(gameScreen);
+        print("Game added to layout.");
+    }
+
+    @Override
+    protected void onPause()
+    {
+        print("PAUSE");
+        if (gameScreen != null)
+        {
+            gameScreen.unregisterSurfaceChangedListener();
+            if (gameEngine.isPlaying())
+            {
+                gameEngine.pauseGame();
+            }
+        }
+        super.onPause();
+        print("DONE PAUSE");
+    }
+
+    @Override
+    protected void onStop()
+    {
+        print("STOP");
+        /*
+        if (gameScreen != null)
+        {
+            gameScreen.unregisterSurfaceChangedListener();
+        }
+        if (gameEngine != null && gameEngine.isActive())
+        {
+            gameEngine.stopGame();
+        }
+        gameEngine = null;
+        gameScreen = null;
+        */
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy()
+    {
+        super.onDestroy();
+        print("DESTROY");
+    }
+
+    @Override
+    protected void onResume()
+    {
+        print("RESUME");
+        super.onResume();
+
+        // Determine if the game is stopped or just paused.
+        if (gameEngine == null || !gameEngine.isActive())
+        {
+            showMainMenuLayout();
+        }
+        else
+        {
+            gameEngine.unpauseGame();
+        }
+    }
+
+/*
     private void setupMenu(int s, int b)
     {
         setContentView(R.layout.menu_layout);
@@ -95,28 +213,28 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
                     game.startGame();
                 }
                 return true;
-                /*
-                if (game != null)
-                    if (game.isRunning())
-                        return false;
-                        */
             }
         });
     }
-
+    */
+/*
     @Override
-    protected void onStart() {
+    protected void onStart()
+    {
         super.onStart();
         print("START");
     }
 
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+    protected void onRestoreInstanceState(Bundle savedInstanceState)
+    {
         super.onRestoreInstanceState(savedInstanceState);
         print("RESTORE INSTANCE STATE");
     }
 
     @Override
-    protected void onResume() {
+    protected void onResume()
+    {
+        print("resume");
         super.onResume();
         print("RESUME");
         if (game != null && game.isActive() && !game.isPlaying())
@@ -130,18 +248,22 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     }
 
     @Override
-    protected void onPause() {
+    protected void onPause()
+    {
         print("PAUSE");
         if (game != null && game.isPlaying())
         {
             game.pauseGame();
-            (findViewById(R.id.pauseMenu)).setVisibility(View.VISIBLE);
+            print("after game pause");
+            //(findViewById(R.id.pauseMenu)).setVisibility(View.VISIBLE);
         }
         super.onPause();
+        print("after super pause");
     }
 
     public void continueGame(View view)
     {
+        print("CONTINUE");
         game.unpauseGame();
         (findViewById(R.id.pauseMenu)).setVisibility(View.INVISIBLE);
     }
@@ -164,21 +286,9 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     protected void onSaveInstanceState(Bundle savedInstanceState) {
         super.onSaveInstanceState(savedInstanceState);
     }
-
-    static void print(String msg)
+*/
+    public static void print(String msg)
     {
-        Log.d(appContext.getResources().getString(R.string.app_name), msg);
-    }
-    static void print(int msg)
-    {
-        Log.d(appContext.getResources().getString(R.string.app_name), msg + "");
-    }
-    static void print(double msg)
-    {
-        Log.d(appContext.getResources().getString(R.string.app_name), msg + "");
-    }
-    static void print(Object msg)
-    {
-        Log.d(appContext.getResources().getString(R.string.app_name), msg.toString());
+        Log.d("SQUARE", msg);
     }
 }

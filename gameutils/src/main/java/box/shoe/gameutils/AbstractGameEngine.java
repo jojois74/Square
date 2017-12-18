@@ -62,12 +62,11 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     // are read causing memory to be flushed by the thread that set it).
     private volatile boolean started = false;
     private volatile boolean stopped = false;
+    private volatile boolean stopThreads = false;
     private volatile boolean paused = false;
-    private volatile boolean frameThreadPaused = false;
-    private volatile boolean updateThreadPaused = false;
+    private volatile boolean pauseThreads = false;
     private volatile boolean oneFrameThenPause = false;
-    private volatile boolean wantToLaunch = false;
-    private volatile boolean viewHasDimension = false;
+    private volatile int numberOfThreadsThatNeedToPause = 0;
 
     // Threads
     private Thread updateThread;
@@ -139,6 +138,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             @Override
             public void run()
             {
+                numberOfThreadsThatNeedToPause++;
                 runUpdates();
             }
         }, appContext.getString(R.string.update_thread_name));
@@ -149,23 +149,12 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             @Override
             public void run()
             {
+                numberOfThreadsThatNeedToPause++;
                 runFrames();
             }
         }, appContext.getString(R.string.frame_thread_name));
 
         gameScreen = screen;
-        gameScreen.setDimensionListener(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                viewHasDimension = true;
-                if (wantToLaunch)
-                {
-                    launch();
-                }
-            }
-        });
         gameScreen.setOnTouchListener(new View.OnTouchListener()
         {
             @Override
@@ -190,16 +179,15 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
     public void startGame()
     {
-        wantToLaunch = true;
-        if (viewHasDimension)
+        if (getGameWidth() == 0 || getGameHeight() == 0)
         {
-            launch();
+            throw new IllegalStateException("Cannot start the game before the screen has been given dimensions!");
         }
+        launch();
     }
 
     private void launch()
     {
-        wantToLaunch = false;
         if (started)
         {
             // May not start a game that is already started.
@@ -240,9 +228,13 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
         Runnable updateCallback = new Runnable()
         {
+            private boolean updateThreadPaused;
+
             @Override
             public void run()
             {
+
+                L.d("runUpdatesCallback", "rewrite");
                 // Keep track of what time it is now. Goes first to get most accurate timing.
                 long startTime = System.nanoTime();
 
@@ -250,16 +242,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 // We do it at the start to make sure we are waiting a precise amount of time
                 // (as precise as we can get with postDelayed). This means we manually remove
                 // the callback if the game stops.
-                updateHandler.removeCallbacksAndMessages(null);
+                //updateHandler.removeCallbacksAndMessages(null);
                 updateHandler.postDelayed(this, expectedUpdateTimeMS); //TODO: inject stutter updates to test various drawing schemes
-
-                // Stop thread.
-                if (stopped)
-                {
-                    updateHandler.removeCallbacksAndMessages(null);
-                    Looper.myLooper().quit();
-                    return;
-                }
 
                 // Acquire the monitor lock, because we cannot update the game at the same time we are trying to draw it.
                 synchronized (updateAndFrameAndInputMonitor)
@@ -276,16 +260,18 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     gameStates.add(gameState);
 
                     // Pause game (postDelayed runnable should not run while this thread is waiting, so no issues there)
-                    while (paused)
+                    while (pauseThreads)
                     {
                         try
                         {
                             if (!updateThreadPaused)
                             {
+                                L.d("pausedUpdates", "pause");
                                 pauseLatch.countDown();
                             }
                             updateThreadPaused = true;
                             updateAndFrameAndInputMonitor.wait();
+                            L.d("WOKEN_U", "WOKEN");
                         }
                         catch (InterruptedException e)
                         {
@@ -293,6 +279,14 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                         }
                     }
                     updateThreadPaused = false;
+
+                    // Stop thread.
+                    if (stopThreads)
+                    {
+                        updateHandler.removeCallbacksAndMessages(null);
+                        return;
+                    }
+
                     L.d("Update ^", "thread");
                     //TODO: if updates are consistently taking too long (or even too short!) we can switch visualization modes.
                 }
@@ -316,6 +310,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
         Choreographer.FrameCallback frameCallback = new Choreographer.FrameCallback()
         {
+            private boolean frameThreadPaused;
+
             @Override
             public void doFrame(long frameTimeNanos)
             {
@@ -327,33 +323,45 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 // but we won't know that an issue occurred.
                 vsync.postFrameCallback(this);
 
-                // Acquire the canvas lock now to save time later (this can be an expensive operation!
-                if (gameScreen.canVisualize() && !gameScreen.preparedToVisualize())
-                {
-                    gameScreen.prepareVisualize();
-                }
-
                 // Correct for minor difference in vsync time.
                 // This is probably totally unnecessary. (And will only change frameTimeNanos in a sufficiently high API anyway)
                 frameTimeNanos -= vsyncOffsetNanos;
-
                 synchronized (updateAndFrameAndInputMonitor)
                 {
                     L.d("Frame V", "thread");
 
-                    // If we aren't prepared to visualize yet, try one more time, now that we have acquired the monitor lock (because this may be taking place a good deal later)
-                    if (!gameScreen.preparedToVisualize() && gameScreen.canVisualize())
+                    // Pause game
+                    // Spin lock when we want to pause
+                    while (pauseThreads && !oneFrameThenPause)
                     {
-                        gameScreen.prepareVisualize();
+                        try
+                        {
+                            // Do not count down the latch off spurious wakeup!
+                            if (!frameThreadPaused)
+                            {
+                                pauseLatch.countDown();
+                                L.d("pausedFrames", "pause");
+                            }
+                            frameThreadPaused = true;
+                            updateAndFrameAndInputMonitor.wait();
+                            L.d("WOKEN_F", "WOKEN");
+                        }
+                        catch (InterruptedException e)
+                        {
+                            e.printStackTrace();
+                        }
                     }
-
+                    frameThreadPaused = false;
+                    L.d("between pause and stop", "rewrite2");
                     // Stop game if prompted
-                    if (stopped)
+                    if (stopThreads)
                     {
                         // Since we asked for the callback up above,
                         // we should remove it if we plan on quiting
                         // so we do not do an extra callback.
+                        L.d("about to remove callback", "rewrite2");
                         vsync.removeFrameCallback(this);
+                        L.d("removed callback", "rewrite2");
                         if (gameScreen.preparedToVisualize())
                         {
                             if (lastVisualizedGameState != null)
@@ -366,31 +374,14 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 gameScreen.unlockCanvasAndClear();
                             }
                         }
-                        Looper.myLooper().quit();
                         return;
                     }
 
-                    // Pause game
-                    // Spin lock when we want to pause
-                    while (paused && !oneFrameThenPause)
+                    // Acquire the canvas lock now to save time later (this can be an expensive operation!) //TODO: this saves no time unless does async, or while waiting for synchronize lock. That may be a bad idea since 1) we may give up our synchronize cahnce and 2) we need to release the canvas prepare lock on stop or pause
+                    if (gameScreen.canVisualize() && !gameScreen.preparedToVisualize())
                     {
-                        try
-                        {
-                            // Do not count down the latch off spurious wakeup!
-                            if (!frameThreadPaused)
-                            {
-                                pauseLatch.countDown();
-                            }
-                            frameThreadPaused = true;
-                            updateAndFrameAndInputMonitor.wait();
-                            L.d("WOKEN", "WOKEN");
-                        }
-                        catch (InterruptedException e)
-                        {
-                            e.printStackTrace();
-                        }
+                        gameScreen.prepareVisualize();
                     }
-                    frameThreadPaused = false;
 
                     boolean paintedFrame = false;
 
@@ -487,6 +478,10 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                     paintedFrame = true;
                                     Log.w("T", " Using previous valid state.");
                                 }
+                                else
+                                {
+                                    gameScreen.unlockCanvasAndClear();
+                                }
                                 break;
                             }
                         }
@@ -497,7 +492,9 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                         oneFrameThenPause = false;
                     }
                     L.d("Frame ^", "thread");
+                    L.d("end of sync block", "rewrite2");
                 }
+                L.d("after sync block", "rewrite2");
             }
         };
         vsync.postFrameCallback(frameCallback);
@@ -514,11 +511,39 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     {
         if (!Thread.currentThread().getName().equals("main"))
         {
-            Log.w("T", "Was not called from the main thread, instead from: " + Thread.currentThread().getName() + ". Will be run from the Main thread instead.");
+            //Log.w("T", "Was not called from the main thread, instead from: " + Thread.currentThread().getName() + ". Will be run from the Main thread instead.");
+            throw new IllegalThreadStateException("Must be called from main thread");
         }
 
-        stopped = true; //TODO: synchronize this?
+        stopThreads = true; //TODO: synchronize this?
 
+        // Check if we are paused.
+        if (!isPlaying())
+        {
+            L.d("unpause in stop", "rewrite2");
+            // We will need to unpause the game if we are currently paused in order to stop it.
+            unpauseGame();
+        }
+
+        try
+        {
+            if (updateThread.isAlive())
+            {
+                updateThread.join();
+            }
+            if (frameThread.isAlive())
+            {
+                frameThread.join();
+            }
+        }
+        catch (InterruptedException e)
+        {
+            e.printStackTrace();
+        }
+
+        stopped = true;
+
+        /*
         Handler mainHandler = new Handler(appContext.getMainLooper());
         mainHandler.post(new Runnable()
         {
@@ -542,7 +567,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     dispatchEvent(GameEventConstants.GAME_OVER);
                 }
             }
-        });
+        });*/
     }
 
     /**
@@ -575,35 +600,24 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
      */
     public void pauseGame() //TODO: should only be called from main thread?
     {
-        if (Thread.currentThread().equals(updateThread) || Thread.currentThread().equals(frameThread))
+        /*if (Thread.currentThread().equals(updateThread) || Thread.currentThread().equals(frameThread))
         {
-            paused = true;
+            pauseThreads = true;
             return;
-        }
+        }*/
         if (!isActive())
         {
             Log.w("F", "No need to pause game that isn't running.");
             return;
-        }/*
-        Handler handler = new Handler(appContext.getMainLooper());
-        handler.post(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                Log.d("M", Thread.currentThread().getName());
-                paused = true; //Tell threads to pause
-                Log.d("M", "Abstract Game Engine attempt to pause threads.");
-                while (!frameThreadPaused && !updateThreadPaused);
-                Log.d("M", "Abstract Game Engine sees threads paused.");
-            }
-        });*/
+        }
+
+        L.d("pausing in abstract game engine", "pause");
 
         // 1 frame thread + 1 update thread = 2
-        pauseLatch = new CountDownLatch(2);
+        pauseLatch = new CountDownLatch(numberOfThreadsThatNeedToPause);
 
-        // Tell threads to stop
-        paused = true;
+        // Tell threads to pause
+        pauseThreads = true;
 
         try
         {
@@ -613,6 +627,9 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         {
             e.printStackTrace();
         }
+
+        paused = true;
+        L.d("after pausing in abstract game engine", "pause");
     }
 
     public void unpauseGame()
@@ -623,6 +640,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             return;
         }
         Log.d("G", "Unpausing game");
+
+        pauseThreads = false;
         paused = false;
         synchronized (updateAndFrameAndInputMonitor)
         {
@@ -636,6 +655,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
      */
     public void paintOneFrame()
     {
+        L.d("paintOneFrame", "p");
         synchronized (updateAndFrameAndInputMonitor)
         {
             if (isPlaying())
@@ -666,88 +686,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     protected abstract void update();
 
     protected abstract void saveGameState(GameState gameState);
-
-    /**
-     * Tracks an entity for interpolation purposes and returns it
-     * TODO: remove this and replace with game states (a little easier to deal with, but not much
-     */
-    /*
-    protected <T extends InterpolatableEntity> T track(T entityKind)
-    {
-        entityList.add(entityKind);
-        return entityKind;
-    }*/
-
-    /**
-     * Black magic or utter genius?
-     * Perhaps add overloaded constructor for InterpolatableEntity itself that does not require you to pass InterpolatableEntity.class?
-     */
-    /*
-    protected <T extends InterpolatableEntity> T createEntity(Class<T> type, Object... args)
-    {
-        T creation = null;
-
-        // Find the desired constructor by analysing the args that were passed
-        Constructor[] constructors = type.getDeclaredConstructors();
-        Constructor matchedConstructor = null;
-        for (Constructor constructor : constructors)
-        {
-            boolean matchWorks = true;
-            Class[] conArgTypes = constructor.getParameterTypes();
-            if (args.length != conArgTypes.length)
-            {
-                matchWorks = false;
-                Log.d("A", "Wrong length");
-            }
-            else
-            {
-                for (int i = 0; i < args.length; i++)
-                {
-                    Class argType = args[i].getClass();
-                    Class conArgType = conArgTypes[i];
-
-                    if (argType.isPrimitive() && conArgType.isPrimitive()) //This check does not work on wrapper classes. Needs a fix!
-                    {
-                        Log.d("A", "Both primitive");
-                    }
-                    else if (!(conArgType.isAssignableFrom(argType)))
-                    {
-                        matchWorks = false;
-                        Log.d("A", "Arg mismatch. constructor wanted: " + conArgType + ". arg supplied: " + argType);
-                        break;
-                    }
-                }
-            }
-            if (matchWorks)
-            {
-                matchedConstructor = constructor;
-            }
-        }
-        if (matchedConstructor == null)
-        {
-            throw new IllegalArgumentException("No constructor found matching the supplied arguments.");
-        }
-
-        try
-        {
-            Log.d("h", "Class exists" + type.getDeclaredConstructors()[0].toString());
-            creation = type.cast(matchedConstructor.newInstance(args));
-            entityList.add(creation);
-        }
-        catch (InstantiationException e)
-        {
-            e.printStackTrace();
-        }
-        catch (IllegalAccessException e)
-        {
-            e.printStackTrace();
-        }
-        catch (InvocationTargetException e)
-        {
-            e.printStackTrace();
-        }
-        return creation;
-    }*/
 
     public int getGameWidth()
     {

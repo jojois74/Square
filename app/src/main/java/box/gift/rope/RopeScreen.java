@@ -23,9 +23,9 @@ import box.shoe.gameutils.VisualizableEntity;
 
 public class RopeScreen extends AbstractGameSurfaceView
 {
-    public RopeScreen(Context context)
+    public RopeScreen(Context context, Runnable surfaceChangedListener)
     {
-        super(context);
+        super(context, surfaceChangedListener);
     }
 
     @Override
@@ -42,11 +42,6 @@ public class RopeScreen extends AbstractGameSurfaceView
         if (player.interpolatedThisFrame)
             player.paint(canvas);
 
-/*
-        // Particle
-        if (data.effect != null)
-            data.effect.paint(canvas, interpolationRatio);
-*/
         // Walls
         LinkedList<VisualizableEntity> walls = interpolatedState.getData("walls");
         for (VisualizableEntity wall : walls)
@@ -56,14 +51,17 @@ public class RopeScreen extends AbstractGameSurfaceView
                 wall.paint(canvas);
             }
         }
-/*
+
         // Coins
-        LinkedList<InterpolatableEntity> coins = data.coins;
-        for (InterpolatableEntity coin : coins)
+        LinkedList<VisualizableEntity> coins = interpolatedState.getData("coins");
+        for (VisualizableEntity coin : coins)
         {
-            coin.paint(canvas, interpolationRatio);
+            if (coin.interpolatedThisFrame)
+            {
+                coin.paint(canvas);
+            }
         }
-*/
+
         // Top and Bottom
         paint.setColor(Color.RED);
         int thickness = 14;

@@ -18,18 +18,21 @@ import java.math.BigDecimal;
  * Created by Joseph on 10/23/2017.
  */
 
-public abstract class AbstractGameSurfaceView extends SurfaceView implements SurfaceHolder.Callback, SurfaceHolder.Callback2, Cleanable
+public abstract class AbstractGameSurfaceView extends SurfaceView implements SurfaceHolder.Callback, Cleanable
 {
     private SurfaceHolder holder;
     private volatile boolean surfaceReady = false;
-    private Runnable dimensionListener;
     public Paint paint;
     private boolean preparedToVisualize = false;
     private Canvas canvas;
 
-    public AbstractGameSurfaceView(Context context)
+    private boolean hasDimensions = false;
+    private Runnable surfaceChangedListener;
+
+    public AbstractGameSurfaceView(Context context, Runnable surfaceChangedListener)
     {
         super(context);
+        this.surfaceChangedListener = surfaceChangedListener;
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         holder = getHolder();
         holder.addCallback(this);
@@ -40,11 +43,6 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         this.abstractData = abstractData;
     }
 */
-
-    public void surfaceRedrawNeeded(SurfaceHolder surfaceHolder)
-    {
-        Log.w("Redraw needed", "Redraw needed called.");
-    }
 
     public void prepareVisualize()
     {
@@ -73,18 +71,24 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         // Clear the canvas
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
         paint(canvas, interpolatedState);
-        holder.unlockCanvasAndPost(canvas);
         preparedToVisualize = false;
+        holder.unlockCanvasAndPost(canvas);
     }
 
     public void unlockCanvasAndClear()
     {
-        L.d("unlock canva and clear called", "clear");
-        if (preparedToVisualize())
+        L.d("unlock canvas and clear called", "clear");
+        if (!preparedToVisualize())
         {
-            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
-            holder.unlockCanvasAndPost(canvas);
+            throw new IllegalStateException("Not prepared to visualize. Please call prepareVisualize() before calling visualize each time.");
         }
+        if (!surfaceReady)
+        {
+            throw new IllegalStateException("Surface is not ready to paint. Please call canVisualize() to check.");
+        }
+        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+        preparedToVisualize = false;
+        holder.unlockCanvasAndPost(canvas);
     }
 
     //protected abstract void paint(Canvas canvas, AbstractGameEngine abstractData, double interpolationRatio);
@@ -96,19 +100,22 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         surfaceReady = true;
     }
 
-    public void setDimensionListener(Runnable r)
-    {
-        dimensionListener = r;
-    }
-
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height)
     {
-        if (width > 0 && dimensionListener != null)
+        if (width > 0 && height > 0)
         {
-            L.d("Alert the dimension listener", "trace");
-            dimensionListener.run();
+            hasDimensions = true;
+            if (surfaceChangedListener != null)
+            {
+                surfaceChangedListener.run();
+            }
         }
+    }
+
+    public void unregisterSurfaceChangedListener() //Irreversable
+    {
+        surfaceChangedListener = null;
     }
 
     @Override
@@ -119,7 +126,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
 
     public boolean canVisualize()
     {
-        return surfaceReady;
+        return surfaceReady && hasDimensions;
     }
 
     public boolean preparedToVisualize()
