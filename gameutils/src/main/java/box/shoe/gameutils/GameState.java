@@ -21,6 +21,9 @@ import java.util.Set;
  */
 //TODO: we do not want to paint entities in their first update unless we have an intelligent place to put them (interpolate based on velocity?)
     //TODO: but we do want to paint entities even if they are removed next update
+        //TODO: some of these functions should be renamed
+            //TODO: perhaps the GameState system is due for a tiny rewrite in general
+                //TODO: GameState should be renamed in any case to something like SaveState (but that isn't good either)
 public class GameState implements Cleanable
 {
     private Map<String, Object> data;

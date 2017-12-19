@@ -13,8 +13,8 @@ import box.shoe.gameutils.AbstractGameSurfaceView;
 
 
 public class MainActivity extends Activity //TODO: destructive callbacks can do work before calling super, do not unpause when game unpauses, look at lunar landing ex
-{//TODO: when back button is pressed it should safely pause like normal
-    public static Context appContext;
+{
+    private Context appContext;
     private AbstractGameEngine gameEngine;
     private AbstractGameSurfaceView gameScreen;
 
@@ -28,7 +28,7 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
         print("CREATE");
         super.onCreate(savedInstanceState);
 
-        MainActivity.appContext = getApplicationContext();
+        appContext = getApplicationContext();
 
         //L.disableChannel("trace");
         L.disableChannel("thread");
@@ -98,16 +98,49 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     protected void onPause()
     {
         print("PAUSE");
+        pauseGameIfPlaying();
+        super.onPause();
+        print("DONE PAUSE");
+    }
+
+    /**
+     * If playing the game, pause it.
+     * If game is paused, resume it.
+     * Otherwise, default back button action.
+     */
+    @Override
+    public void onBackPressed()
+    {
+        if (pauseGameIfPlaying())
+        {
+            // On a game pause, since we have not left the activity, show the pause menu.
+            showPauseMenu();
+        }
+        else if (gameEngine != null && gameEngine.isActive() && !gameEngine.isPlaying())
+        {
+            // If the game is paused, return to the game, as if the resume game button was pressed.
+            resumeGame(null);
+        }
+        else
+        {
+            // If the game was not active, simply let the OS do whatever it wants.
+            super.onBackPressed();
+        }
+    }
+
+    // Returns whether or not the game was running (and thus was paused)
+    private boolean pauseGameIfPlaying()
+    {
         if (gameScreen != null)
         {
-            gameScreen.unregisterSurfaceChangedListener();
+            gameScreen.unregisterSurfaceChangedListener(); //TODO: this should be done as soon as the game starts, not waiting until resume??? when is this called anyway, when screen is flipped? BAD! (maybe bad)
             if (gameEngine.isPlaying())
             {
                 gameEngine.pauseGame();
+                return true;
             }
         }
-        super.onPause();
-        print("DONE PAUSE");
+        return false;
     }
 
     @Override
