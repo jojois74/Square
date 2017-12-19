@@ -162,11 +162,28 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
         super.onStop();
     }
 
+    /**
+     * Be a good citizen and stop the game for good on destroy.
+     * Free memory, kill threads. This is not necessary, because the system will do any reclaim
+     * necessary. Even so, we can dismantle our threads properly without much effort.
+     * But if onDestroy is never called (as is possible), there will not be any problems.
+     */
     @Override
     protected void onDestroy()
     {
-        super.onDestroy();
+        if (gameEngine != null)
+        {
+            gameScreen.unregisterSurfaceChangedListener();
+            if (gameEngine.isActive())
+            {
+                gameEngine.stopGame(); //TODO: run cleanup on gameEngine if we decide that stopGame doesn't do so automatically.
+            }
+        }
+        gameEngine = null;
+        //TODO; deal will gameScreen
+
         print("DESTROY");
+        super.onDestroy();
     }
 
     @Override
