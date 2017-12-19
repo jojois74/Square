@@ -11,19 +11,18 @@ import android.support.annotation.CallSuper;
  * Width and height are different from display-width and display-height.
  */
 
-public class Entity implements Cleanable
+public class Entity implements Cleanable //TODO: position should also be a vector?
 {
-    // X coordinate, representative of how far right this is on the screen.
-    public double x;
-    // Y coordinate, representative of how far up this is on the screen. //TODO: make this actually true, override canvas????? (or provide higher level abstraction for drawing...)
-    public double y;
-
     // Width represents how much horizontal space this takes up.
     public double width;
     // Height represents how much vertical space this takes up.
     public double height;
 
-    // Vector which represents how many x and y units this will move per update.
+    // Vector which represents where this is on the screen. Positive direction indicates how far right and up this is on the screen.
+    // (In other words, displacement from the origin in the x (rightward) and y (upward) directions.)
+    //TODO: make this actually true, override canvas????? (or provide higher level abstraction for drawing...) (right now, positive y is down, not up!)
+    public Vector position;
+    // Vector which represents how many x and y units the position will change by per update.
     public Vector velocity;
     // Vector which represents how many x and y units the velocity will change by per update.
     public Vector acceleration;
@@ -77,27 +76,52 @@ public class Entity implements Cleanable
      */
     public Entity(double initialX, double initialY, double initialWidth, double initialHeight, Vector initialVelocity, Vector initialAcceleration)
     {
-        x = initialX;
-        y = initialY;
         width = initialWidth;
         height = initialHeight;
+        position = new Vector(initialX, initialY);
         velocity = initialVelocity;
         acceleration = initialAcceleration;
         registrationPoint = new Point(0, 0);
     }
 
     /**
-     * Updates position based on current velocity, and then updates velocity based on current acceleration.
+     * Updates velocity based on current acceleration, and then updates position based on new velocity.
+     * We do not need to multiply by dt because every timestep is of equal length.
      */
     @CallSuper
     public void update()
     {
-        // Update positions first based on current velocity
-        x += velocity.getX();
-        y += velocity.getY();
+        // We will update velocity based on acceleration first, and update position based on velocity second.
+        // This is apparently called Semi-Implicit Euler and is a more accurate form of integration
+        // when acceleration is not constant.
+        // More importantly though, we do it because we subscribe to the holy faith
+        // of Gaffer On Games, whose recommendations are infallible.
 
-        // Update velocity based on current acceleration
+        // Update velocity first based on current acceleration.
         velocity = velocity.add(acceleration);
+
+        // Update position based on new velocity.
+        position = position.add(velocity);
+    }
+
+    /**
+     * Convenience accessor function for returning the x position.
+     * (Postcondition: getX() == position.getX())
+     * @return the x position.
+     */
+    public double getX()
+    {
+        return position.getX();
+    }
+
+    /**
+     * Convenience accessor function for returning the y position.
+     * (Postcondition: getY() == position.getY())
+     * @return the y position.
+     */
+    public double getY()
+    {
+        return position.getY();
     }
 
     @SuppressLint("MissingSuperCall")

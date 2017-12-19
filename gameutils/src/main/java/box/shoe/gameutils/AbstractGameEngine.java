@@ -448,8 +448,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                             InterpolatableState newValue = newEntry.getValue();
                                             InterpolatableState oldValue = oldInterpolatableEntitiesMap.get(key);
 
-                                            double interpolatedX = ((newValue.x - oldValue.x) * interpolationRatio) + oldValue.x;
-                                            double interpolatedY = ((newValue.y - oldValue.y) * interpolationRatio) + oldValue.y;
+                                            double interpolatedX = ((newValue.position.getX() - oldValue.position.getX()) * interpolationRatio) + oldValue.position.getX();
+                                            double interpolatedY = ((newValue.position.getY() - oldValue.position.getY()) * interpolationRatio) + oldValue.position.getY();
 
                                             //TODO: maybe find another way to communicate where to paint the entity?
                                             key.interpolatedX = interpolatedX;
@@ -528,14 +528,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
         try
         {
-            if (updateThread.isAlive())
-            {
-                updateThread.join();
-            }
-            if (frameThread.isAlive())
-            {
-                frameThread.join();
-            }
+            updateThread.join();
+            frameThread.join();
         }
         catch (InterruptedException e)
         {

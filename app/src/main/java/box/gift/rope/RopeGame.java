@@ -98,7 +98,7 @@ public class RopeGame extends AbstractGameEngine
     {
         scheduler.tick();
 
-        if (player.y < 0 || player.y > getGameHeight())
+        if (player.getY() < 0 || player.getY() > getGameHeight())
         {
             playerDead();
         }
@@ -110,10 +110,10 @@ public class RopeGame extends AbstractGameEngine
         while (iterator.hasNext())
         {
             VisualizableEntity wall = iterator.next();
-            double oldX = wall.x;
+            double oldX = wall.getX();
             wall.velocity = new Vector(-21, 0);
             wall.update();
-            if (oldX > player.x && wall.x < player.x)
+            if (oldX > player.getX() && wall.getX() < player.getX())
             {
                 passingWall = true;
             }
@@ -121,7 +121,7 @@ public class RopeGame extends AbstractGameEngine
             {
                 playerDead();
             }
-            if (wall.x + wall.getDisplayWidth() < 0)
+            if (wall.getX() - wall.registrationPoint.x + wall.width < 0)
             {
                 iterator.remove();
             }
@@ -135,7 +135,6 @@ public class RopeGame extends AbstractGameEngine
         while (iterator.hasNext())
         {
             InterpolatableEntity coin = iterator.next();
-            double oldX = coin.x;
             coin.velocity = (new Vector(-21, 0));
             coin.update();
             if (EntityCollisions.collideRectangle(player, coin)) //TODO: use circle collision for coins?

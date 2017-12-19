@@ -4,14 +4,12 @@ package box.shoe.gameutils;
  * Created by Joseph on 12/9/2017.
  */
 
-public class InterpolatableState
+public class InterpolatableState //TODO: if this class only needs to hold a position, replace with Vector and delete this class
 {
-    public double x;
-    public double y;
+    public Vector position;
 
-    public InterpolatableState(double initialX, double initialY)
+    public InterpolatableState(Vector savePosition)
     {
-        x = initialX;
-        y = initialY;
+        this.position = savePosition;
     }
 }

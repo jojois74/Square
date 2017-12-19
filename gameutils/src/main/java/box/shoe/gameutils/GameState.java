@@ -19,7 +19,8 @@ import java.util.Set;
 /**
  * Created by Joseph on 12/7/2017.
  */
-
+//TODO: we do not want to paint entities in their first update unless we have an intelligent place to put them (interpolate based on velocity?)
+    //TODO: but we do want to paint entities even if they are removed next update
 public class GameState implements Cleanable
 {
     private Map<String, Object> data;
@@ -34,12 +35,12 @@ public class GameState implements Cleanable
 
     public void saveInterpolatableEntity(InterpolatableEntity interpolatableEntity)
     {
-        interpolatableEntitiesMap.put(interpolatableEntity, new InterpolatableState(interpolatableEntity.x, interpolatableEntity.y));
+        interpolatableEntitiesMap.put(interpolatableEntity, new InterpolatableState(interpolatableEntity.position));
     }
 
     public void saveInterpolatableEntity(String key, InterpolatableEntity interpolatableEntity)
     {
-        interpolatableEntitiesMap.put(interpolatableEntity, new InterpolatableState(interpolatableEntity.x, interpolatableEntity.y));
+        interpolatableEntitiesMap.put(interpolatableEntity, new InterpolatableState(interpolatableEntity.position));
         saveData(key, interpolatableEntity);
     }
 
