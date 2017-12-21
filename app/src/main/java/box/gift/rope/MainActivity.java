@@ -10,8 +10,8 @@ import android.view.ViewGroup;
 import box.shoe.gameutils.L;
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
-
-
+//TODO: there should be an interface updateable for entities, taskschedulers. particleeffetc etccc...
+//TODO: rename to GameActivity and place in gameutils module, so that it can be simply extended in the app module. (similarly, the layout files, somehow make customizable still)
 public class MainActivity extends Activity //TODO: destructive callbacks can do work before calling super, do not unpause when game unpauses, look at lunar landing ex
 {
     private Context appContext;
@@ -25,7 +25,7 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        print("CREATE");
+        L.d("CREATE", "lifecycle");
         super.onCreate(savedInstanceState);
 
         appContext = getApplicationContext();
@@ -43,7 +43,7 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
             {
                 if (!gameEngine.isActive()) //TODO: implies that a stopped game can be run again?
                 {
-                    print("Received surfaceChanged callback.");
+                    L.d("Received surfaceChanged callback.", "lifecycle");
                     gameEngine.startGame();
                     gameScreen.unregisterSurfaceChangedListener();
                 }
@@ -68,7 +68,7 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
 
     public void mainMenuClicked(View view)
     {
-        print("CLICK");
+        L.d("CLICK", "lifecycle");
 
         showGameLayout();
         createGame();
@@ -91,16 +91,15 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     {
         gameFrame.removeAllViews();
         gameFrame.addView(gameScreen);
-        print("Game added to layout.");
+        L.d("Game added to layout.", "lifecycle");
     }
 
     @Override
     protected void onPause()
     {
-        print("PAUSE");
+        L.d("PAUSE", "lifecycle");
         pauseGameIfPlaying();
         super.onPause();
-        print("DONE PAUSE");
     }
 
     /**
@@ -146,7 +145,7 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     @Override
     protected void onStop()
     {
-        print("STOP");
+        L.d("STOP", "lifecycle");
         /*
         if (gameScreen != null)
         {
@@ -171,6 +170,7 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     @Override
     protected void onDestroy()
     {
+        L.d("DESTROY", "lifecycle");
         if (gameEngine != null)
         {
             gameScreen.unregisterSurfaceChangedListener();
@@ -181,15 +181,13 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
         }
         gameEngine = null;
         //TODO; deal will gameScreen
-
-        print("DESTROY");
         super.onDestroy();
     }
 
     @Override
     protected void onResume()
     {
-        print("RESUME");
+        L.d("RESUME", "lifecycle");
         super.onResume();
 
         // Determine if the game is stopped or just paused.
@@ -285,18 +283,16 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
     }
     */
 
-    protected void onRestoreInstanceState(Bundle savedInstanceState)
-    {
-        super.onRestoreInstanceState(savedInstanceState);
-        print("RESTORE INSTANCE STATE");
-    }
-
     @Override
-    protected void onSaveInstanceState(Bundle savedInstanceState) {
+    protected void onSaveInstanceState(Bundle savedInstanceState)
+    {//TODO: save last score
+        L.d("SAVE INSTANCE STATE", "lifecycle");
         super.onSaveInstanceState(savedInstanceState);
     }
-    public static void print(String msg)
-    {
-        Log.d("SQUARE", msg);
+
+    protected void onRestoreInstanceState(Bundle savedInstanceState)
+    {//TODO: restore last score
+        L.d("RESTORE INSTANCE STATE", "lifecycle");
+        super.onRestoreInstanceState(savedInstanceState);
     }
 }

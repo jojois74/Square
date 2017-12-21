@@ -23,7 +23,7 @@ public class GameTasker implements Cleanable
 
     public void register(int ms, int repetitions, Runnable schedulable) //0 for repetions means eternal, ms accurate to within about 10ms if tick() is called on an AbstractGameEngine update
     {
-        tasks.add(new Task((int) (UPMS * ms), repetitions, schedulable));
+        tasks.add(new Task((int) Math.round(UPMS * ms), repetitions, schedulable));
     }
 
     public void cancelAll()

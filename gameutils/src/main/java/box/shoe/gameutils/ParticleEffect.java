@@ -1,8 +1,9 @@
 package box.shoe.gameutils;
 
+import android.annotation.SuppressLint;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.util.Log;
+import android.graphics.Paint;
 
 import java.util.ArrayList;
 
@@ -10,69 +11,177 @@ import java.util.ArrayList;
  * Created by Joseph on 12/1/2017.
  * Heavy work in progress. May need to wait on entity redefinition, animation classes
  */
+//TODO: make a good way to manage particle effects, such as static method for creation
+    //TODO: rename to particle source, becaue it can spawn particles by calling emit() until we stop it.
+    //TODO: maybe static functions to emit? or singleton
+public class ParticleEffect implements Paintable
+{
+    private static Rand random = new Rand();
+    private Vector emitter;
+    public ArrayList<Particle> particles;
 
-public class ParticleEffect
-{/*
-    private InterpolatableEntity emitter;
-    private int num;
-
-    public ParticleEffect(InterpolatableEntity source, int numParticles)
+    public ParticleEffect(Vector sourcePosition)
     {
-        emitter = source;
-        num = numParticles;
-    }
+        emitter = sourcePosition;
+        particles = new ArrayList<>();
 
-    public AbstractPaintable getVisual()
-    {
-        final ArrayList<InterpolatableEntity> particles = new ArrayList<>();
-        Rand rand = new Rand();
-        for (int i = 0; i < num; i++)
+        for (int i = 0; i < 10; i++)
         {
-            particles.add(new InterpolatableEntity(emitter.getX(), emitter.getY(), new Vector(rand.randomBetween(-10, 10), 10), new ParticlePaintable(10, 10)));
-            Log.d("f", "h");
+            Vector velocity = new Vector(random.randomBetween(-5, 5), random.randomBetween(-5, 5));
+            Particle particle = new Particle(emitter.getX(), emitter.getY(), 0, 0, velocity);
+            particles.add(particle);
         }
-
-        AbstractPaintable vis = new ContainPaintable(200, 200, particles);
-
-        return vis;
     }
 
-    private class ParticlePaintable extends AbstractPaintable
+    @Override
+    public void paint(int x, int y, Canvas canvas)
     {
-        private ParticlePaintable(int w, int h)
+        for (Particle particle : particles)
         {
-            super(w, h);
-            setRegistrationPoint(w / 2, h / 2);
+            particle.paint((int) Math.round(particle.getX()), (int) Math.round(particle.getY()), canvas);
+        }
+    }
+
+    public void update()
+    {
+        for (Particle particle : particles)
+        {
+            particle.update();
+        }
+    }
+
+    @Override
+    public int getWidth()
+    {
+        return 0;
+    }
+
+    @Override
+    public int getHeight()
+    {
+        return 0;
+    }
+
+    @Override
+    public void setWidth(int newWidth)
+    {
+
+    }
+
+    @Override
+    public void setHeight(int newHeight)
+    {
+
+    }
+
+    @SuppressLint("MissingSuperCall")
+    @Override
+    public void cleanup()
+    {
+
+    }
+
+    public class Particle extends InterpolatableEntity implements Paintable
+    {
+        /*package*/ Particle(double initialX, double initialY, double initialWidth, double initialHeight, Vector initialVelocity)
+        {
+            super(initialX, initialY, initialWidth, initialHeight, initialVelocity);
         }
 
         @Override
-        protected void blueprintPaint(int width, int height, Canvas canvas)
+        public void paint(int x, int y, Canvas canvas)
         {
-            paint.setColor(Color.BLACK);
-            canvas.drawRect(0, 0, 100, 100, paint);
-        }
-    }
-
-    private class ContainPaintable extends AbstractPaintable
-    {
-        ArrayList<InterpolatableEntity> p;
-        private ContainPaintable(int w, int h, ArrayList p)
-        {
-            super(w, h);
-            this.p = p;
-            setRegistrationPoint(w / 2, h / 2);
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(Color.GREEN);
+            canvas.drawRect((float) getX(), (float) getY(), (float) (getX() + 10), (float) (getY() + 10), paint);
         }
 
         @Override
-        protected void blueprintPaint(int width, int height, Canvas canvas)
+        public int getWidth()
         {
-            for (InterpolatableEntity particle : p)
-            {
-                particle.paint(canvas);
-                particle.saveOldPosition();
-                particle.moveWithVelocity();
-                particle.setVelocity(new Vector(particle.getVelocity().getX() * .7, particle.getVelocity().getY()));
-            }
+            return 0;
         }
-    }*/
+
+        @Override
+        public int getHeight()
+        {
+            return 0;
+        }
+
+        @Override
+        public void setWidth(int newWidth)
+        {
+
+        }
+
+        @Override
+        public void setHeight(int newHeight)
+        {
+
+        }
+
+        @SuppressLint("MissingSuperCall")
+        @Override
+        public void cleanup()
+        {
+
+        }
+    }
+
+    public static class Builder
+    {
+        /*
+        Things we need:
+        emitter (mandatory) maybe...
+        number of particles per emit
+        size of particles
+        color
+        shape
+        duration of each emit
+        speed
+        effects (fade/disappear)
+        some function to change appearance/color
+        acceleration of particles,
+        emiter location center or line.
+        some randomness factors/fudge factors
+         */
+
+        private int numberOfParticles = 12;
+        private int durationMS = 1000;
+        private double particleSpeed = 5;
+
+        public Builder(int UPS)
+        {
+
+        }
+
+        public ParticleEffect build()
+        {
+            return null;
+        }
+
+        // Create immutable copy of this builder from which to create more particles.
+        public Builder etch()
+        {
+            return null;
+        }
+
+        public Builder number(int numberOfParticles)
+        {
+            this.numberOfParticles = numberOfParticles;
+            return this;
+        }
+
+        public Builder speed(double particleSpeed)
+        {
+            this.particleSpeed = particleSpeed;
+            return this;
+        }
+
+        public Builder duration(int durationMS)
+        {
+            this.durationMS = durationMS;
+            return this;
+        }
+    }
 }

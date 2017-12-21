@@ -15,6 +15,7 @@ import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.InterpolatableEntity;
 import box.shoe.gameutils.GameState;
 import box.shoe.gameutils.L;
+import box.shoe.gameutils.ParticleEffect;
 import box.shoe.gameutils.VisualizableEntity;
 
 /**
@@ -41,6 +42,14 @@ public class RopeScreen extends AbstractGameSurfaceView
         Player player = interpolatedState.getData("player");
         if (player.interpolatedThisFrame)
             player.paint(canvas);
+
+        /*
+        // Effect
+        LinkedList<ParticleEffect> effects = interpolatedState.getData("effects");
+        for (ParticleEffect effect : effects)
+        {
+            effect.paint(0, 0, canvas);
+        }*/
 
         // Walls
         LinkedList<VisualizableEntity> walls = interpolatedState.getData("walls");

@@ -8,10 +8,12 @@ import java.util.LinkedList;
 
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
+import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.InterpolatableEntity;
 import box.shoe.gameutils.EntityCollisions;
 import box.shoe.gameutils.GameState;
 import box.shoe.gameutils.GameTasker;
+import box.shoe.gameutils.L;
 import box.shoe.gameutils.Paintable;
 import box.shoe.gameutils.ParticleEffect;
 import box.shoe.gameutils.Rand;
@@ -34,12 +36,12 @@ public class RopeGame extends AbstractGameEngine
 
     // Objs
     public Player player;
-    public LinkedList<VisualizableEntity> walls;
-    public LinkedList<VisualizableEntity> coins;
+    public LinkedList<Wall> walls;
+    public LinkedList<Coin> coins;
     private Rand rand;
     private GameTasker scheduler;
     private ParticleEffect part;
-    public InterpolatableEntity effect;
+    private LinkedList<ParticleEffect> effects;
 
     public RopeGame(Context appContext, AbstractGameSurfaceView screen)
     {
@@ -47,15 +49,13 @@ public class RopeGame extends AbstractGameEngine
         scheduler = new GameTasker(RopeGame.TARGET_UPS);
         walls = new LinkedList<>();
         coins = new LinkedList<>();
+        effects = new LinkedList<>();
         rand = new Rand();
     }
 
     @Override
     protected void initialize()
     {
-        wallPaintable = new WallPaintable(25, getGameHeight() / 3);
-        coinPaintable = new CoinPaintable(80, 80);
-        //player = new Player(getGameWidth() / 6, getGameHeight() / 8, new PlayerPaintable(60, 60));
         player = new Player(getGameWidth() / 6, getGameHeight() / 8);
         Runnable generateWallAndCoin = new Runnable()
         {
@@ -66,17 +66,17 @@ public class RopeGame extends AbstractGameEngine
                 int hole = rand.randomBetween(0, 2);
                 if (hole != 0)
                 {
-                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), 0, 25, third, wallPaintable);
+                    Wall wall = new Wall(getGameWidth(), 0, 25, third);
                     walls.add(wall);
                 }
                 if (hole != 1)
                 {
-                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), third, 25, third, wallPaintable);
+                    Wall wall = new Wall(getGameWidth(), third, 25, third);
                     walls.add(wall);
                 }
                 if (hole != 2)
                 {
-                    VisualizableEntity wall = new VisualizableEntity(getGameWidth(), 2 * third, 25, third, wallPaintable);
+                    Wall wall = new Wall(getGameWidth(), 2 * third, 25, third);
                     walls.add(wall);
                 }
 
@@ -85,7 +85,7 @@ public class RopeGame extends AbstractGameEngine
                 int randHeight = random.randomBetween(margin, getGameHeight() - margin);
                 if (rand == 0)
                 {
-                    coins.add((new VisualizableEntity(getGameWidth() * 1.3, randHeight, 80, 80, coinPaintable)));
+                    coins.add((new Coin(getGameWidth() * 1.3, randHeight, 80, 80)));
                 }
             }
         };
@@ -106,10 +106,10 @@ public class RopeGame extends AbstractGameEngine
         player.update();
 
         boolean passingWall = false;
-        Iterator<VisualizableEntity> iterator = walls.iterator();
-        while (iterator.hasNext())
+        Iterator<Wall> wallIterator = walls.iterator();
+        while (wallIterator.hasNext())
         {
-            VisualizableEntity wall = iterator.next();
+            Wall wall = wallIterator.next();
             double oldX = wall.getX();
             wall.velocity = new Vector(-21, 0);
             wall.update();
@@ -121,9 +121,9 @@ public class RopeGame extends AbstractGameEngine
             {
                 playerDead();
             }
-            if (wall.getX() - wall.registrationPoint.x + wall.width < 0)
+            if (wall.getX() - wall.registration.getX() + wall.width < 0)
             {
-                iterator.remove();
+                wallIterator.remove();
             }
         }
         if (passingWall)
@@ -131,18 +131,24 @@ public class RopeGame extends AbstractGameEngine
             score++; //TODO: score should go up a bit later, so you do not gain a point upon dying against a wall
         }
 
-        iterator = coins.iterator();
-        while (iterator.hasNext())
+        Iterator<Coin> coinIterator = coins.iterator();
+        while (coinIterator.hasNext())
         {
-            InterpolatableEntity coin = iterator.next();
+            Coin coin = coinIterator.next();
             coin.velocity = (new Vector(-21, 0));
             coin.update();
             if (EntityCollisions.collideRectangle(player, coin)) //TODO: use circle collision for coins?
             {
                 score++;
-                iterator.remove();
+                coinIterator.remove();
             }
         }
+
+        /*
+        for (ParticleEffect effect : effects)
+        {
+            effect.update();
+        }*/
     }
 
     @Override
@@ -152,14 +158,14 @@ public class RopeGame extends AbstractGameEngine
         gameState.saveInterpolatableEntity("player", player);
 
         // Save all the walls for interpolation. //TODO: function in GameState to do collections
-        for (InterpolatableEntity wall : walls)
+        for (Wall wall : walls)
         {
             gameState.saveInterpolatableEntity(wall);
         }
         gameState.saveData("walls", walls);
 
         // Save all the coins for interpolation.
-        for (InterpolatableEntity coin : coins)
+        for (Coin coin : coins)
         {
             gameState.saveInterpolatableEntity(coin);
         }
@@ -167,11 +173,21 @@ public class RopeGame extends AbstractGameEngine
 
         // Save the score.
         gameState.saveData("score", score);
+/*
+        // Save the effect.
+        for (ParticleEffect effect : effects)
+        {
+            for (ParticleEffect.Particle particle : effect.particles)
+            {
+                gameState.saveInterpolatableEntity(particle);
+            }
+        }
+        gameState.saveData("effects", effects);*/
     }
 
     private void playerDead()
     {
-        MainActivity.print("DEAD");
+        L.d("DEAD", "lifecycleRope");
         //stopGame();
     }
 
@@ -203,5 +219,6 @@ public class RopeGame extends AbstractGameEngine
     private void actionDown()
     {
         player.velocity = player.actionVelocity;
+        //effects.add(new ParticleEffect(player.position.add(player.registration)));
     }
 }

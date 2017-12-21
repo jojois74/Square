@@ -455,6 +455,11 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                             key.interpolatedX = interpolatedX;
                                             key.interpolatedY = interpolatedY;
 
+                                            //SharedInterpolatableValues newSharedInterpolatablValues = new SharedInterpolatableValues();
+                                            //SharedInterpolatableValues oldSharedInterpolatablValues = new SharedInterpolatableValues();
+
+
+
                                             key.interpolatedThisFrame = true;
                                         }
                                         else

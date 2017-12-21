@@ -1,5 +1,8 @@
 package box.shoe.gameutils;
 
+import android.os.Parcel;
+import android.os.Parcelable;
+
 /**
  * Created by Joseph on 10/21/2017.
  * Represents a vector in the mathematical sense.

@@ -2,7 +2,13 @@ package box.shoe.gameutils;
 
 import android.annotation.SuppressLint;
 import android.graphics.Point;
+import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.annotation.CallSuper;
+
+import java.sql.Wrapper;
+import java.util.HashMap;
+import java.util.Set;
 
 /**
  * Created by Joseph on 12/9/2017.
@@ -10,9 +16,9 @@ import android.support.annotation.CallSuper;
  * Technically: a Game object with x and y coordinates, which can be fractional, width and height, which can be fractional (or 0 to indicate no space taken up) and Vector objects for velocity and acceleration.
  * Width and height are different from display-width and display-height.
  */
-
-public class Entity implements Cleanable //TODO: position should also be a vector?
-{
+//TODO: entities should be recyclable so as to not have to keep on allocating data. Perhaps use this as an excuse for a builder function, and no more need for GameStates!
+public class Entity implements Cleanable //TODO: position should also be vector in constructors?
+{ //TODO: extend AbstractEventDispatcher?
     // Width represents how much horizontal space this takes up.
     public double width;
     // Height represents how much vertical space this takes up.
@@ -27,8 +33,12 @@ public class Entity implements Cleanable //TODO: position should also be a vecto
     // Vector which represents how many x and y units the velocity will change by per update.
     public Vector acceleration;
 
-    // Point of origin from which all positioning of this object is calculated.
-    public Point registrationPoint;
+    // Relatively from the position, where to find the point of origin from which all positioning of this object is calculated.
+    public final Vector registration;
+
+    public double iWidth;
+    public double iHeight;
+    public Vector iPosition;
 
     /**
      * Creates an Entity with the specified x and y coordinates, with no width or height, with no velocity or acceleration.
@@ -81,7 +91,7 @@ public class Entity implements Cleanable //TODO: position should also be a vecto
         position = new Vector(initialX, initialY);
         velocity = initialVelocity;
         acceleration = initialAcceleration;
-        registrationPoint = new Point(0, 0);
+        registration = new Vector(0, 0);
     }
 
     /**
@@ -130,5 +140,52 @@ public class Entity implements Cleanable //TODO: position should also be a vecto
     {
         velocity = null;
         acceleration = null;
+    }
+
+    @CallSuper
+    public void putInterpolatables(SharedInterpolatableValues request)
+    {
+        request.push(this, width);
+        request.push(this, height);
+
+        request.push(this, position.getX());
+        request.push(this, position.getY());
+    }
+
+    @CallSuper
+    public void readInterpolatables(SharedInterpolatableValues response)
+    {
+        iWidth = response.pop(this).doubleValue();
+        iHeight = response.pop(this).doubleValue();
+        iPosition = new Vector(response.pop(this).doubleValue(), response.pop(this).doubleValue());
+    }
+
+    {
+        Bundle test = new Bundle();
+        Set<String> keySet = test.keySet();
+        for (String key : keySet)
+        {
+            Object val = test.get(key);
+            if (val instanceof Double)
+            {
+
+            }
+            else if (val instanceof Integer)
+            {
+
+            }
+            else if (val instanceof Float)
+            {
+
+            }
+            else if (val instanceof Long)
+            {
+
+            }
+            else if (val instanceof Short)
+            {
+
+            }
+        }
     }
 }
