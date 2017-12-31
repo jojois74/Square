@@ -51,14 +51,11 @@ public class RopeScreen extends AbstractGameSurfaceView
         }*/
 
         // Walls
-        /*LinkedList<Paintable> walls = interpolatedState.getData("walls");
+        LinkedList<Paintable> walls = gameState.get("walls");
         for (Paintable wall : walls)
         {
-            //if (wall.interpolatedThisFrame)
-            {
-                wall.paint(canvas);
-            }
-        }*/
+            wall.paint(canvas);
+        }
 
         // Coins
         /*LinkedList<Paintable> coins = interpolatedState.getData("coins");

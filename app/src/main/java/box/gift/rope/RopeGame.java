@@ -25,18 +25,15 @@ import box.shoe.gameutils.Vector;
 
 public class RopeGame extends AbstractGameEngine
 {
-    private double lastTouchX;
-    private double lastTouchY;
-
     // Consts
     private static final int TARGET_UPS = 25; //No need to make ups too high!
     private Paintable wallPaintable;
     private Paintable coinPaintable;
 
     // Objs
-    public Player player;
-    public LinkedList<Wall> walls;
-    public LinkedList<Coin> coins;
+    private Player player;
+    private LinkedList<Wall> walls;
+    private LinkedList<Coin> coins;
     private Rand rand;
     private GameTasker scheduler;
     private ParticleEffect part;
@@ -102,8 +99,11 @@ public class RopeGame extends AbstractGameEngine
             playerDead();
         }
 
-        //player.update();
-        player.width+=10;
+        if (screenTouched)
+        {
+            player.velocity = Player.jumpVelocity;
+        }
+        player.update();
 
         boolean passingWall = false;
         Iterator<Wall> wallIterator = walls.iterator();
@@ -154,8 +154,12 @@ public class RopeGame extends AbstractGameEngine
     @Override
     protected void saveGameState(GameState gameState)
     {
-        // Save the player for interpolation.
+        // Save the player.
         gameState.put("player", player);
+
+        //Save the walls.
+        gameState.put("walls", walls);
+
 /*
         // Save all the walls for interpolation. //TODO: function in GameState to do collections
         for (Wall wall : walls)
@@ -202,23 +206,5 @@ public class RopeGame extends AbstractGameEngine
         //Cleanup scheduler TODO
         scheduler = null;
         //Cleanup walls TODO
-    }
-
-    @Override
-    public void onTouchEvent(MotionEvent event)
-    {
-        int action = event.getActionMasked();
-        if (action == MotionEvent.ACTION_DOWN)
-        {
-            lastTouchX = event.getX();
-            lastTouchY = event.getY();
-            actionDown();
-        }
-    }
-
-    private void actionDown()
-    {
-        player.velocity = player.actionVelocity;
-        //effects.add(new ParticleEffect(player.position.add(player.registration)));
     }
 }

@@ -23,7 +23,7 @@ public class Player extends Entity implements Paintable
 
     @InterpolateTarget(id = "opacity")
     public double _opacity = 0;
-    /*package*/ final Vector actionVelocity = new Vector(0, -30);
+    /*package*/ static final Vector jumpVelocity = new Vector(0, -30);
 
     public Player(double initialX, double initialY)
     {

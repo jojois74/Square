@@ -171,7 +171,9 @@ public final class Vector implements Interpolatable<Vector>
     @Override
     public Vector copy()
     {
-        return new Vector(getX(), getY());
+        // We are immutable so no need to copy....
+        return this;
+        //return new Vector(getX(), getY());
     }
 
     @NonNull

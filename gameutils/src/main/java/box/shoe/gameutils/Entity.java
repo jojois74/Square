@@ -18,9 +18,6 @@ public class Entity implements Cleanable //TODO: position should also be vector 
 { //TODO: extend AbstractEventDispatcher?
     /*pack*/ static final LinkedList<Entity> ENTITIES = new LinkedList<>();
 
-    /*pack*/ Interpolatables newInterpolatables = null;
-    /*pack*/ Interpolatables oldInterpolatables = null;
-
     // Width represents how much horizontal space this takes up.
     @InterpolateSource(id = "width")
     public double width;
@@ -112,7 +109,8 @@ public class Entity implements Cleanable //TODO: position should also be vector 
     @CallSuper
     public void update()
     {
-        // We will update velocity based on acceleration first, and update position based on velocity second.
+        // We will update velocity based on acceleration first,
+        // and update position based on velocity second.
         // This is apparently called Semi-Implicit Euler and is a more accurate form of integration
         // when acceleration is not constant.
         // More importantly though, we do it because we subscribe to the holy faith

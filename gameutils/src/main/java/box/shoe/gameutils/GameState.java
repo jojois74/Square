@@ -1,6 +1,7 @@
 package box.shoe.gameutils;
 
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
@@ -11,10 +12,12 @@ public class GameState
 {
     private long timeStamp;
     private Map<String, Object> data;
+    /*pack*/ IdentityHashMap<Entity, Interpolatables> interps;
 
     /*pack*/ GameState()
     {
         data = new HashMap<>();
+        interps = new IdentityHashMap<>();
     }
 
     /*pack*/ void setTimeStamp(long timeStamp)
