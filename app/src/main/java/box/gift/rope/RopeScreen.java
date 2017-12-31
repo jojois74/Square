@@ -15,8 +15,8 @@ import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.InterpolatableEntity;
 import box.shoe.gameutils.GameState;
 import box.shoe.gameutils.L;
+import box.shoe.gameutils.Paintable;
 import box.shoe.gameutils.ParticleEffect;
-import box.shoe.gameutils.VisualizableEntity;
 
 /**
  * Created by Joseph on 10/23/2017.
@@ -30,7 +30,7 @@ public class RopeScreen extends AbstractGameSurfaceView
     }
 
     @Override
-    protected void paint(Canvas canvas, GameState interpolatedState)
+    protected void paint(Canvas canvas, GameState gameState)
     {
         //List<InterpolatableEntity> interps = interpolatedState.getInterpolatedEntities();
         //MainActivity.print(interps.toString());
@@ -39,9 +39,8 @@ public class RopeScreen extends AbstractGameSurfaceView
         canvas.drawColor(Color.WHITE);
 
         // Player
-        Player player = interpolatedState.getData("player");
-        if (player.interpolatedThisFrame)
-            player.paint(canvas);
+        Player player = gameState.get("player");
+        player.paint(canvas);
 
         /*
         // Effect
@@ -52,24 +51,24 @@ public class RopeScreen extends AbstractGameSurfaceView
         }*/
 
         // Walls
-        LinkedList<VisualizableEntity> walls = interpolatedState.getData("walls");
-        for (VisualizableEntity wall : walls)
+        /*LinkedList<Paintable> walls = interpolatedState.getData("walls");
+        for (Paintable wall : walls)
         {
-            if (wall.interpolatedThisFrame)
+            //if (wall.interpolatedThisFrame)
             {
                 wall.paint(canvas);
             }
-        }
+        }*/
 
         // Coins
-        LinkedList<VisualizableEntity> coins = interpolatedState.getData("coins");
-        for (VisualizableEntity coin : coins)
+        /*LinkedList<Paintable> coins = interpolatedState.getData("coins");
+        for (Paintable coin : coins)
         {
-            if (coin.interpolatedThisFrame)
+            //if (coin.interpolatedThisFrame)
             {
                 coin.paint(canvas);
             }
-        }
+        }*/
 
         // Top and Bottom
         paint.setColor(Color.RED);
@@ -78,8 +77,8 @@ public class RopeScreen extends AbstractGameSurfaceView
         canvas.drawRect(0, getHeight() - thickness, getWidth(), getHeight(), paint);
 
         // Score
-        paint.setTextSize(50);
+        /*paint.setTextSize(50);
         paint.setColor(Color.BLUE);
-        canvas.drawText("Score: " + String.valueOf(interpolatedState.getData("score")), 40, 90, paint);
+        canvas.drawText("Score: " + String.valueOf(interpolatedState.getData("score")), 40, 90, paint);*/
     }
 }

@@ -1,14 +1,11 @@
 package box.shoe.gameutils;
 
 import android.annotation.SuppressLint;
-import android.graphics.Point;
-import android.os.Bundle;
-import android.os.Parcelable;
 import android.support.annotation.CallSuper;
 
-import java.sql.Wrapper;
-import java.util.HashMap;
-import java.util.Set;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Created by Joseph on 12/9/2017.
@@ -19,14 +16,22 @@ import java.util.Set;
 //TODO: entities should be recyclable so as to not have to keep on allocating data. Perhaps use this as an excuse for a builder function, and no more need for GameStates!
 public class Entity implements Cleanable //TODO: position should also be vector in constructors?
 { //TODO: extend AbstractEventDispatcher?
+    /*pack*/ static final LinkedList<Entity> ENTITIES = new LinkedList<>();
+
+    /*pack*/ Interpolatables newInterpolatables = null;
+    /*pack*/ Interpolatables oldInterpolatables = null;
+
     // Width represents how much horizontal space this takes up.
+    @InterpolateSource(id = "width")
     public double width;
     // Height represents how much vertical space this takes up.
+    @InterpolateSource(id = "height")
     public double height;
 
     // Vector which represents where this is on the screen. Positive direction indicates how far right and up this is on the screen.
     // (In other words, displacement from the origin in the x (rightward) and y (upward) directions.)
     //TODO: make this actually true, override canvas????? (or provide higher level abstraction for drawing...) (right now, positive y is down, not up!)
+    @InterpolateSource(id = "position")
     public Vector position;
     // Vector which represents how many x and y units the position will change by per update.
     public Vector velocity;
@@ -34,11 +39,14 @@ public class Entity implements Cleanable //TODO: position should also be vector 
     public Vector acceleration;
 
     // Relatively from the position, where to find the point of origin from which all positioning of this object is calculated.
-    public final Vector registration;
+    public Vector registration; //TODO: make final somehow
 
-    public double iWidth;
-    public double iHeight;
-    public Vector iPosition;
+    @InterpolateTarget(id = "width")
+    public double _width;
+    @InterpolateTarget(id = "height")
+    public double _height;
+    @InterpolateTarget(id = "position")
+    public Vector _position;
 
     /**
      * Creates an Entity with the specified x and y coordinates, with no width or height, with no velocity or acceleration.
@@ -86,12 +94,15 @@ public class Entity implements Cleanable //TODO: position should also be vector 
      */
     public Entity(double initialX, double initialY, double initialWidth, double initialHeight, Vector initialVelocity, Vector initialAcceleration)
     {
-        width = initialWidth;
-        height = initialHeight;
-        position = new Vector(initialX, initialY);
+        width = _width = initialWidth;
+        height = _height = initialHeight;
+        position = _position = new Vector(initialX, initialY); //TODO: we are setting the visual fields equal to the normal ones for display before the first couple frames (before it has been interpolated). the other option may be better -- do not paint entities until they can be interpolated ?
         velocity = initialVelocity;
         acceleration = initialAcceleration;
         registration = new Vector(0, 0);
+
+        // Save this Entity for interpolation //TODO: figure out how to free entities when removed
+        ENTITIES.add(this);
     }
 
     /**
@@ -134,58 +145,27 @@ public class Entity implements Cleanable //TODO: position should also be vector 
         return position.getY();
     }
 
+    @CallSuper
+    public void provideInterpolatables(Interpolatables in)
+    {
+        in.provide(width);
+        in.provide(height);
+        in.provide(position);
+    }
+
+    @CallSuper
+    public void recallInterpolatables(Interpolatables out)
+    {
+        _width = out.recall();
+        _height = out.recall();
+        _position = out.recall();
+    }
+
     @SuppressLint("MissingSuperCall")
     @Override
     public void cleanup()
     {
         velocity = null;
         acceleration = null;
-    }
-
-    @CallSuper
-    public void putInterpolatables(SharedInterpolatableValues request)
-    {
-        request.push(this, width);
-        request.push(this, height);
-
-        request.push(this, position.getX());
-        request.push(this, position.getY());
-    }
-
-    @CallSuper
-    public void readInterpolatables(SharedInterpolatableValues response)
-    {
-        iWidth = response.pop(this).doubleValue();
-        iHeight = response.pop(this).doubleValue();
-        iPosition = new Vector(response.pop(this).doubleValue(), response.pop(this).doubleValue());
-    }
-
-    {
-        Bundle test = new Bundle();
-        Set<String> keySet = test.keySet();
-        for (String key : keySet)
-        {
-            Object val = test.get(key);
-            if (val instanceof Double)
-            {
-
-            }
-            else if (val instanceof Integer)
-            {
-
-            }
-            else if (val instanceof Float)
-            {
-
-            }
-            else if (val instanceof Long)
-            {
-
-            }
-            else if (val instanceof Short)
-            {
-
-            }
-        }
     }
 }

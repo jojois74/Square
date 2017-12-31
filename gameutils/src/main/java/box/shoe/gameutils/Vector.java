@@ -1,7 +1,8 @@
 package box.shoe.gameutils;
 
-import android.os.Parcel;
-import android.os.Parcelable;
+import android.support.annotation.NonNull;
+
+import org.jetbrains.annotations.Contract;
 
 /**
  * Created by Joseph on 10/21/2017.
@@ -10,7 +11,7 @@ import android.os.Parcelable;
  * This class is IMMUTABLE.
  */
 
-public final class Vector
+public final class Vector implements Interpolatable<Vector>
 {
     private final double x;
     private final double y;
@@ -56,17 +57,19 @@ public final class Vector
      * @param otherVector the Vector to add to this one.
      * @return a Vector representing the addition of the two supplied Vectors.
      */
-    public Vector add(Vector otherVector)
+    @NonNull
+    public Vector add(@NonNull Vector otherVector)
     {
         return new Vector(x + otherVector.getX(), y + otherVector.getY());
     }
 
     /**
-     * Substracts another Vector from this Vector
+     * Subtracts another Vector from this Vector
      * @param otherVector the Vector to subtract.
      * @return a Vector representing the subtraction of the other Vector from this one.
      */
-    public Vector subtract(Vector otherVector)
+    @NonNull
+    public Vector subtract(@NonNull Vector otherVector)
     {
         return new Vector(x - otherVector.getX(), y - otherVector.getY());
     }
@@ -76,6 +79,7 @@ public final class Vector
      * @param factor the factor to scale by.
      * @return a new, scaled Vector.
      */
+    @NonNull
     public Vector scale(double factor)
     {
         return new Vector(x * factor, y * factor);
@@ -86,7 +90,8 @@ public final class Vector
      * @param otherVector the Vector to multiply with.
      * @return the dot product of the two Vectors.
      */
-    public double dot(Vector otherVector)
+    @Contract(pure = true)
+    public double dot(@NonNull Vector otherVector)
     {
         return (x * otherVector.x) + (y * otherVector.y);
     }
@@ -96,7 +101,8 @@ public final class Vector
      * @param target the Vector to project onto.
      * @return the Vector projection.
      */
-    public Vector projectOnto(Vector target)
+    @NonNull
+    public Vector projectOnto(@NonNull Vector target)
     {
         return target.unit().scale(this.dot(target.unit()));
     }
@@ -105,6 +111,7 @@ public final class Vector
      * Creates a new Vector with only the x value of this one, and y set to 0.
      * @return the horizontal Vector.
      */
+    @NonNull
     public Vector onlyX()
     {
         return new Vector(x, 0);
@@ -114,6 +121,7 @@ public final class Vector
      * Creates a new Vector with only the y value of this one, and x set to 0.
      * @return the vertical Vector.
      */
+    @NonNull
     public Vector onlyY()
     {
         return new Vector(0, y);
@@ -124,6 +132,7 @@ public final class Vector
      * @param radians the degree in radians to rotate by.
      * @return the rotated Vector.
      */
+    @NonNull
     public Vector rotateBy(double radians)
     {
         return new Vector(x * Math.cos(radians) - y * Math.sin(radians), x * Math.sin(radians) + y * Math.cos(radians));
@@ -133,23 +142,44 @@ public final class Vector
      * Creates a Vector perpendicular to this one.
      * @return the perpendicular Vector
      */
+    @NonNull
     public Vector perpendicular()
     {
         return this.rotateBy(Math.PI / 2);
     }
 
+    @Contract(pure = true)
     public double getX()
     {
         return x;
     }
 
+    @Contract(pure = true)
     public double getY()
     {
         return y;
     }
 
+    @NonNull
+    @Contract(pure = true)
     public String toString()
     {
         return "x: " + x + " y: " + y;
+    }
+
+    @NonNull
+    @Override
+    public Vector copy()
+    {
+        return new Vector(getX(), getY());
+    }
+
+    @NonNull
+    @Override
+    public Vector interpolateTo(Vector other, double interpolationRatio)
+    {
+        double newX = other.getX() * (interpolationRatio + 1) - (interpolationRatio * getX());
+        double newY = other.getY() * (interpolationRatio + 1) - (interpolationRatio * getY());
+        return new Vector(newX, newY);
     }
 }

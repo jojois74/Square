@@ -23,7 +23,7 @@ public class Coin extends Entity implements Paintable
     }
 
     @Override
-    public void paint(int x, int y, Canvas canvas)
+    public void paint(Canvas canvas)
     {
         paint.setColor(Color.parseColor("#e8c125"));
         canvas.drawCircle(0, 0, (float) width / 2, paint);

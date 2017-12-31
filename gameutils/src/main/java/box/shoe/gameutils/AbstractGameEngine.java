@@ -8,6 +8,7 @@ import android.os.Looper;
 import android.os.Vibrator;
 import android.support.annotation.IntDef;
 import android.util.Log;
+import android.util.Pair;
 import android.view.Choreographer;
 import android.view.Display;
 import android.view.MotionEvent;
@@ -16,6 +17,10 @@ import android.view.WindowManager;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -253,11 +258,14 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     // Do a game update.
                     update();
 
-                    // Save game state for interpolation
+                    // Save game state for painting.
                     GameState gameState = new GameState();
                     saveGameState(gameState);
-                    gameState.timeStamp = startTime;
+                    gameState.setTimeStamp(startTime);
                     gameStates.add(gameState);
+
+                    // Execute interpolation service for all Entities.
+                    saveInterpolationFields();
 
                     // Pause game (postDelayed runnable should not run while this thread is waiting, so no issues there)
                     while (pauseThreads)
@@ -295,6 +303,21 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
         updateHandler.post(updateCallback);
         Looper.loop();
+    }
+
+    private void saveInterpolationFields()
+    {
+        LinkedList<Entity> entities = Entity.ENTITIES;
+        for (Entity entity : entities)
+        {
+            // Generate new Interpolatables.
+            Interpolatables newInterpolatables = new Interpolatables();
+            entity.provideInterpolatables(newInterpolatables);
+
+            // Shift and save.
+            entity.oldInterpolatables = entity.newInterpolatables;
+            entity.newInterpolatables = newInterpolatables;
+        }
     }
 
     private void runFrames()
@@ -394,7 +417,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                         while (true)
                         {
                             L.d("GameStates: " + gameStates.size(), "new");
-                            if (gameStates.size() >= 2) // We need two states to draw (interpolate between them)
+                            if (gameStates.size() >= 2) // We need two states to draw (saveInterpolationFields between them)
                             {
                                 // Get the first two saved states
                                 oldState = gameStates.get(0);
@@ -407,13 +430,13 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
                                 if (displayMode == DIS_MODE_FIX_UPDATE_DISPLAY_DURATION)
                                 {
-                                    interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) expectedUpdateTimeNS);
+                                    interpolationRatio = (frameTimeNanos - newState.getTimeStamp()) / ((double) expectedUpdateTimeNS);
                                 }
                                 else if (displayMode == DIS_MODE_VAR_UPDATE_DISPLAY_DURATION)
                                 {
                                     // Time that passed between the game states in question.
-                                    long timeBetween = newState.timeStamp - oldState.timeStamp;
-                                    interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) timeBetween);
+                                    long timeBetween = newState.getTimeStamp() - oldState.getTimeStamp();
+                                    interpolationRatio = (frameTimeNanos - newState.getTimeStamp()) / ((double) timeBetween);
                                 }
                                 else
                                 {
@@ -434,37 +457,20 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 }
                                 else
                                 {
-                                    Map<InterpolatableEntity, InterpolatableState> oldInterpolatableEntitiesMap = oldState.getInterpolatableEntitiesMap();
-                                    Map<InterpolatableEntity, InterpolatableState> newInterpolatableEntitiesMap = newState.getInterpolatableEntitiesMap();
-
-                                    Set<Map.Entry<InterpolatableEntity, InterpolatableState>> newInterpolatableEntitiesMapEntrySet = newInterpolatableEntitiesMap.entrySet();
-
-                                    for (Map.Entry<InterpolatableEntity, InterpolatableState> newEntry : newInterpolatableEntitiesMapEntrySet)
+                                    List<Entity> entities = Entity.ENTITIES;
+                                    for (Entity entity : entities)
                                     {
-                                        InterpolatableEntity key = newEntry.getKey(); // We can define this now because only on rare occasion will this not be used.
-                                        // If this entry is common to both sets
-                                        if (oldInterpolatableEntitiesMap.containsKey(key))
+                                        Interpolatables oldInterpolatables = entity.oldInterpolatables;
+                                        Interpolatables newInterpolatables = entity.newInterpolatables;
+
+                                        try
                                         {
-                                            InterpolatableState newValue = newEntry.getValue();
-                                            InterpolatableState oldValue = oldInterpolatableEntitiesMap.get(key);
-
-                                            double interpolatedX = ((newValue.position.getX() - oldValue.position.getX()) * interpolationRatio) + oldValue.position.getX();
-                                            double interpolatedY = ((newValue.position.getY() - oldValue.position.getY()) * interpolationRatio) + oldValue.position.getY();
-
-                                            //TODO: maybe find another way to communicate where to paint the entity?
-                                            key.interpolatedX = interpolatedX;
-                                            key.interpolatedY = interpolatedY;
-
-                                            //SharedInterpolatableValues newSharedInterpolatablValues = new SharedInterpolatableValues();
-                                            //SharedInterpolatableValues oldSharedInterpolatablValues = new SharedInterpolatableValues();
-
-
-
-                                            key.interpolatedThisFrame = true;
+                                            Interpolatables interp = oldInterpolatables.interpolateTo(newInterpolatables, interpolationRatio);
+                                            entity.recallInterpolatables(interp);
                                         }
-                                        else
+                                        catch (IllegalStateException e)
                                         {
-                                            key.interpolatedThisFrame = false;
+                                            System.out.println("Noncompatible interpolations.");
                                         }
                                     }
 

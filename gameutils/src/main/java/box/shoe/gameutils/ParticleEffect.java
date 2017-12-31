@@ -14,8 +14,8 @@ import java.util.ArrayList;
 //TODO: make a good way to manage particle effects, such as static method for creation
     //TODO: rename to particle source, becaue it can spawn particles by calling emit() until we stop it.
     //TODO: maybe static functions to emit? or singleton
-public class ParticleEffect implements Paintable
-{
+public class ParticleEffect //implements Paintable
+{/*
     private static Rand random = new Rand();
     private Vector emitter;
     public ArrayList<Particle> particles;
@@ -34,7 +34,7 @@ public class ParticleEffect implements Paintable
     }
 
     @Override
-    public void paint(int x, int y, Canvas canvas)
+    public void paint(Canvas canvas)
     {
         for (Particle particle : particles)
         {
@@ -48,76 +48,21 @@ public class ParticleEffect implements Paintable
         {
             particle.update();
         }
-    }
-
-    @Override
-    public int getWidth()
-    {
-        return 0;
-    }
-
-    @Override
-    public int getHeight()
-    {
-        return 0;
-    }
-
-    @Override
-    public void setWidth(int newWidth)
-    {
-
-    }
-
-    @Override
-    public void setHeight(int newHeight)
-    {
-
-    }
-
-    @SuppressLint("MissingSuperCall")
-    @Override
-    public void cleanup()
-    {
-
-    }
-
+    }*/
+/*
     public class Particle extends InterpolatableEntity implements Paintable
-    {
-        /*package*/ Particle(double initialX, double initialY, double initialWidth, double initialHeight, Vector initialVelocity)
+    {*/
+        /*package*//* Particle(double initialX, double initialY, double initialWidth, double initialHeight, Vector initialVelocity)
         {
             super(initialX, initialY, initialWidth, initialHeight, initialVelocity);
         }
 
         @Override
-        public void paint(int x, int y, Canvas canvas)
+        public void paint(Canvas canvas)
         {
             Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
             paint.setColor(Color.GREEN);
             canvas.drawRect((float) getX(), (float) getY(), (float) (getX() + 10), (float) (getY() + 10), paint);
-        }
-
-        @Override
-        public int getWidth()
-        {
-            return 0;
-        }
-
-        @Override
-        public int getHeight()
-        {
-            return 0;
-        }
-
-        @Override
-        public void setWidth(int newWidth)
-        {
-
-        }
-
-        @Override
-        public void setHeight(int newHeight)
-        {
-
         }
 
         @SuppressLint("MissingSuperCall")
@@ -126,7 +71,7 @@ public class ParticleEffect implements Paintable
         {
 
         }
-    }
+    }*/
 
     public static class Builder
     {

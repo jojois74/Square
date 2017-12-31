@@ -24,8 +24,8 @@ public class Wall extends Entity implements Paintable
     }
 
     @Override
-    public void paint(int x, int y, Canvas canvas)
+    public void paint(Canvas canvas)
     {
-        canvas.drawRect(x, y, x + (float) width, y + (float) width, paint);
+        //canvas.drawRect((int) Math.round(iPosition.getX()), (int) Math.round(iPosition.getY()), (int) Math.round((iPosition.getX() + width)), (int) Math.round((iPosition.getY() + height)), paint);
     }
 }

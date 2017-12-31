@@ -18,7 +18,6 @@ import box.shoe.gameutils.Paintable;
 import box.shoe.gameutils.ParticleEffect;
 import box.shoe.gameutils.Rand;
 import box.shoe.gameutils.Vector;
-import box.shoe.gameutils.VisualizableEntity;
 
 /**
  * Created by Joseph on 10/23/2017.
@@ -103,7 +102,8 @@ public class RopeGame extends AbstractGameEngine
             playerDead();
         }
 
-        player.update();
+        //player.update();
+        player.width+=10;
 
         boolean passingWall = false;
         Iterator<Wall> wallIterator = walls.iterator();
@@ -155,24 +155,24 @@ public class RopeGame extends AbstractGameEngine
     protected void saveGameState(GameState gameState)
     {
         // Save the player for interpolation.
-        gameState.saveInterpolatableEntity("player", player);
-
+        gameState.put("player", player);
+/*
         // Save all the walls for interpolation. //TODO: function in GameState to do collections
         for (Wall wall : walls)
         {
-            gameState.saveInterpolatableEntity(wall);
+            gameState.markForInterpolation(wall);
         }
         gameState.saveData("walls", walls);
 
         // Save all the coins for interpolation.
         for (Coin coin : coins)
         {
-            gameState.saveInterpolatableEntity(coin);
+            gameState.markForInterpolation(coin);
         }
         gameState.saveData("coins", coins);
 
         // Save the score.
-        gameState.saveData("score", score);
+        gameState.saveData("score", score);*/
 /*
         // Save the effect.
         for (ParticleEffect effect : effects)

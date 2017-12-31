@@ -5,9 +5,10 @@ import android.graphics.Color;
 import android.graphics.Paint;
 
 import box.shoe.gameutils.Entity;
+import box.shoe.gameutils.InterpolateSource;
+import box.shoe.gameutils.InterpolateTarget;
 import box.shoe.gameutils.Paintable;
 import box.shoe.gameutils.Vector;
-import box.shoe.gameutils.VisualizableEntity;
 
 /**
  * Created by Joseph on 11/29/2017.
@@ -16,6 +17,12 @@ import box.shoe.gameutils.VisualizableEntity;
 public class Player extends Entity implements Paintable
 {
     private final Paint paint;
+
+    @InterpolateSource(id = "opacity")
+    public double opacity = 0;
+
+    @InterpolateTarget(id = "opacity")
+    public double _opacity = 0;
     /*package*/ final Vector actionVelocity = new Vector(0, -30);
 
     public Player(double initialX, double initialY)
@@ -27,8 +34,9 @@ public class Player extends Entity implements Paintable
     }
 
     @Override
-    public void paint(int x, int y, Canvas canvas)
+    public void paint(Canvas canvas)
     {
-        canvas.drawRect(x, y, (float) (x + width), (float) (y + height), paint);
+        //System.out.println(_position.getY());
+        canvas.drawRect((int) Math.round(_position.getX()), (int) Math.round(_position.getY()), (int) Math.round((_position.getX() + _width)), (int) Math.round((_position.getY() + _height)), paint);
     }
 }
