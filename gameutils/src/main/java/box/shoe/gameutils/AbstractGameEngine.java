@@ -65,6 +65,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     private volatile boolean pauseThreads = false;
     private volatile boolean oneFrameThenPause = false;
     private volatile int numberOfThreadsThatNeedToPause = 0;
+    private volatile int state = AbstractGameEngine.INACTIVE;
 
     // Threads
     private Thread updateThread;
@@ -81,8 +82,13 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     private List<GameState> gameStates; // We want to use it like a queue, but we need to access the first two elements, so it cannot be one.
     private GameState lastVisualizedGameState;
 
+    // Const
+    public static final int INACTIVE = 0;
+    public static final int PLAYING = 1;
+    public static final int PAUSED = 2;
+
     // Etc
-    public volatile int score;
+    public volatile int score; //TODO: volatile? change signature perhaps when we figure out how we eill give the score to the activity
     protected boolean screenTouched = false;
 
     // Fixed display mode - display will attempt to paint
@@ -679,6 +685,19 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         }
     }
 
+    //TODO: set states and then make use of this function
+    public boolean isInState(int... states)
+    {
+        for (int state : states)
+        {
+            if (this.state == state)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean isActive()
     {
         return started && !stopped;
@@ -704,6 +723,15 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
     protected void onTouchEvent(MotionEvent event)
     {
-        screenTouched = true;
+        int action = event.getActionMasked();
+
+        if (action == MotionEvent.ACTION_DOWN)
+        {
+            screenTouched = true;
+        }
+        else if (action == MotionEvent.ACTION_CANCEL)
+        {
+            screenTouched = false;
+        }
     }
 }

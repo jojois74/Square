@@ -1,23 +1,13 @@
 package box.shoe.gameutils;
 
+import android.graphics.Canvas;
+
 /**
- * Created by Joseph on 11/20/2017.
+ * Created by Joseph on 1/1/2018.
  */
 
-public class Camera
+public interface Camera
 {
-    public Camera()
-    {
-
-    }
-
-    public void pan()
-    {
-
-    }
-
-    public void zoom()
-    {
-
-    }
+    void view(Canvas canvas);
+    void unview(Canvas canvas);
 }

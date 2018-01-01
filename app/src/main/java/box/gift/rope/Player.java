@@ -23,12 +23,11 @@ public class Player extends Entity implements Paintable
 
     @InterpolateTarget(id = "opacity")
     public double _opacity = 0;
-    /*package*/ static final Vector jumpVelocity = new Vector(0, -30);
+    /*package*/ static final Vector jumpVelocity = new Vector(0, 30);
 
     public Player(double initialX, double initialY)
     {
-        super(initialX, initialY, 60, 60, Vector.ZERO, new Vector(0, 2));
-        registration = new Vector(width / 4, 0);
+        super(initialX, initialY, 60, 60, Vector.ZERO, new Vector(0, -2));
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(Color.BLACK);
     }

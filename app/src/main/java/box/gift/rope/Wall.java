@@ -18,7 +18,7 @@ public class Wall extends Entity implements Paintable
 
     public Wall(double initialX, double initialY, double initialWidth, double initialHeight)
     {
-        super(initialX, initialY, initialWidth, initialHeight, new Vector(-10, 0));
+        super(initialX, initialY, initialWidth, initialHeight, new Vector(-21, 0));
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(Color.RED);
     }

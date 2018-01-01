@@ -7,12 +7,8 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.support.annotation.NonNull;
-import android.util.AttributeSet;
-import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-
-import java.math.BigDecimal;
 
 /**
  * Created by Joseph on 10/23/2017.
@@ -20,6 +16,7 @@ import java.math.BigDecimal;
 
 public abstract class AbstractGameSurfaceView extends SurfaceView implements SurfaceHolder.Callback, Cleanable
 {
+    private static final boolean DEBUG_SHOW_BOUNDING_BOXES = false; //TODO: allow to be set from public function
     private SurfaceHolder holder;
     private volatile boolean surfaceReady = false;
     public Paint paint;
@@ -51,10 +48,15 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
             throw new IllegalStateException("Surface is not ready to paint. Please call canVisualize() to check.");
         }
         canvas = holder.lockCanvas(null);
+
+        // Set coordinate origin to (0, 0) and make +x = right, +y = up.
+        canvas.translate(0, canvas.getHeight());
+        canvas.scale(1, -1);
+
         preparedToVisualize = true;
     }
 
-    public void visualize(@NonNull GameState interpolatedState)
+    public void visualize(@NonNull GameState gameState)
     {
         if (!preparedToVisualize())
         {
@@ -70,7 +72,18 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         }*/
         // Clear the canvas
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
-        paint(canvas, interpolatedState);
+
+        paint(canvas, gameState);
+        // Create debug artifacts, which follow the actual in-game positions, and box each Entity.
+        if (AbstractGameSurfaceView.DEBUG_SHOW_BOUNDING_BOXES)
+        {
+            // We will draw all Entities, not just Paintables.
+            for (Entity entity : gameState.interps.keySet())
+            {
+                canvas.drawRect((float) entity.position.getX(), (float) entity.position.getY(), (float) (entity.position.getX() + entity.width), (float) (entity.position.getY() + entity.height), new Paint(Paint.ANTI_ALIAS_FLAG));
+            }
+        }
+
         preparedToVisualize = false;
         holder.unlockCanvasAndPost(canvas);
     }

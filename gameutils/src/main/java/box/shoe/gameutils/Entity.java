@@ -95,7 +95,18 @@ public class Entity implements Cleanable //TODO: position should also be vector 
         registration = new Vector(0, 0);
 
         // Save this Entity for interpolation //TODO: figure out how to free entities when removed
-        ENTITIES.add(this);
+        Entity.createEntity(this);
+    }
+
+    private static void createEntity(Entity entity)
+    {
+        ENTITIES.add(entity);
+    }
+
+    private static void destroyEntity(Entity entity)
+    {
+        //TODO: implementation here
+        ENTITIES.remove(entity);
     }
 
     /**

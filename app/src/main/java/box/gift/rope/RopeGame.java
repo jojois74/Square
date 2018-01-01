@@ -1,15 +1,12 @@
 package box.gift.rope;
 
 import android.content.Context;
-import android.view.MotionEvent;
 
 import java.util.Iterator;
 import java.util.LinkedList;
 
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
-import box.shoe.gameutils.Entity;
-import box.shoe.gameutils.InterpolatableEntity;
 import box.shoe.gameutils.EntityCollisions;
 import box.shoe.gameutils.GameState;
 import box.shoe.gameutils.GameTasker;
@@ -27,8 +24,6 @@ public class RopeGame extends AbstractGameEngine
 {
     // Consts
     private static final int TARGET_UPS = 25; //No need to make ups too high!
-    private Paintable wallPaintable;
-    private Paintable coinPaintable;
 
     // Objs
     private Player player;
@@ -52,27 +47,28 @@ public class RopeGame extends AbstractGameEngine
     @Override
     protected void initialize()
     {
-        player = new Player(getGameWidth() / 6, getGameHeight() / 8);
+        player = new Player(getGameWidth() / 6, 7 * getGameHeight() / 8);
         Runnable generateWallAndCoin = new Runnable()
         {
             @Override
             public void run()
             {
-                int third = getGameHeight() / 3;
-                int hole = rand.randomBetween(0, 2);
-                if (hole != 0)
+                int wallHeight = getGameHeight() / 3;
+                int wallWidth = 20;
+                int holePosition = rand.randomBetween(0, 2);
+                if (holePosition != 0)
                 {
-                    Wall wall = new Wall(getGameWidth(), 0, 25, third);
+                    Wall wall = new Wall(getGameWidth(), 0, wallWidth, wallHeight);
                     walls.add(wall);
                 }
-                if (hole != 1)
+                if (holePosition != 1)
                 {
-                    Wall wall = new Wall(getGameWidth(), third, 25, third);
+                    Wall wall = new Wall(getGameWidth(), wallHeight, wallWidth, wallHeight);
                     walls.add(wall);
                 }
-                if (hole != 2)
+                if (holePosition != 2)
                 {
-                    Wall wall = new Wall(getGameWidth(), 2 * third, 25, third);
+                    Wall wall = new Wall(getGameWidth(), 2 * wallHeight, wallWidth, wallHeight);
                     walls.add(wall);
                 }
 
@@ -111,7 +107,6 @@ public class RopeGame extends AbstractGameEngine
         {
             Wall wall = wallIterator.next();
             double oldX = wall.getX();
-            wall.velocity = new Vector(-21, 0);
             wall.update();
             if (oldX > player.getX() && wall.getX() < player.getX())
             {
