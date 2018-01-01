@@ -18,7 +18,7 @@ public class Coin extends Entity implements Paintable
 
     public Coin(double initialX, double initialY, double initialWidth, double initialHeight)
     {
-        super(initialX, initialY, initialWidth, initialHeight, new Vector(-10, 0));
+        super(initialX, initialY, initialWidth, initialHeight);
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     }
 

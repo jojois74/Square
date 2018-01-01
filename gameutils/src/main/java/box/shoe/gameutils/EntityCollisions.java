@@ -8,31 +8,6 @@ package box.shoe.gameutils;
 
 public class EntityCollisions //TODO: Needs a rename!!! //TODO: maybe all these variables are inefficient? >>:)))
 {
-    // TODO: could implement this as collideRectangle if ok with creating a new Entity
-    // TODO: should take a Screen, not width and height
-    // TODO: so maybe not useful if we are spawning entities offscreen to begin with to move onto the screen.
-    public static boolean isOffscreen(Entity a, int screenWidth, int screenHeight)
-    {
-        // Entity a
-        double minXA = a.position.getX() - a.registration.getX();
-        double maxXA = minXA + a.width;
-        double minYA = a.position.getY() - a.registration.getY();
-        double maxYA = minYA + a.height;
-
-        // Screen
-        double minXB = 0;
-        double maxXB = screenWidth;
-        double minYB = 0;
-        double maxYB = screenHeight;
-
-        return (
-                minXA < maxXB &&
-                maxXA > minXB &&
-                minYA < maxYB &&
-                maxYA > minYB
-        );
-    }
-
     public static boolean collideRectangle(Entity a, Entity b)
     {
         // Entity a

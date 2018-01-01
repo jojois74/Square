@@ -19,17 +19,42 @@ import box.shoe.gameutils.Vector;
 
 public class RopeScreen extends AbstractGameSurfaceView
 {
-    FollowCamera camera = new FollowCamera(FollowCamera.FOLLOW_X);
+    FollowCamera camera;
 
     /* For tool use only (xml layout viewer will construct views to display) */
     private RopeScreen(Context context)
     {
         super(context, null);
+        init();
     }
 
     public RopeScreen(Context context, Runnable surfaceChangedListener)
     {
         super(context, surfaceChangedListener);
+        init();
+    }
+
+    private void init()
+    {
+        camera = new FollowCamera(FollowCamera.FOLLOW_X);
+    }
+
+    @Override
+    public void initialize()
+    {
+        camera.setOffset(new Vector(getWidth() / 10, 0));
+    }
+
+    @Override
+    public boolean isVisible(Paintable paintable)
+    {
+        return false;
+    }
+
+    @Override
+    public boolean isInbounds(Entity entity)
+    {
+        return false;
     }
 
     @Override
@@ -41,7 +66,7 @@ public class RopeScreen extends AbstractGameSurfaceView
         // Background
         canvas.drawColor(Color.WHITE);
 
-        //camera.view(canvas);
+        camera.view(canvas);
 
         // Player
         player.paint(canvas);
@@ -60,7 +85,7 @@ public class RopeScreen extends AbstractGameSurfaceView
             coin.paint(canvas);
         }
 
-        //camera.unview(canvas);
+        camera.unview(canvas);
 
         // Top and Bottom
         paint.setColor(Color.RED);

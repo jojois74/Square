@@ -202,6 +202,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
             // At this point, the surfaceView (and thus the game) has dimensions, so we can do initialization based on them.
             initialize();
+            gameScreen.initialize();
 
             // We will launch two threads.
             // 1) Do game logic (game updates)

@@ -47,7 +47,7 @@ public class RopeGame extends AbstractGameEngine
     @Override
     protected void initialize()
     {
-        player = new Player(getGameWidth() / 6, 7 * getGameHeight() / 8);
+        player = new Player(0, 7 * getGameHeight() / 8);
         Runnable generateWallAndCoin = new Runnable()
         {
             @Override
@@ -55,20 +55,21 @@ public class RopeGame extends AbstractGameEngine
             {
                 int wallHeight = getGameHeight() / 3;
                 int wallWidth = 20;
+                double wallX = player.getX() + getGameWidth();
                 int holePosition = rand.randomBetween(0, 2);
                 if (holePosition != 0)
                 {
-                    Wall wall = new Wall(getGameWidth(), 0, wallWidth, wallHeight);
+                    Wall wall = new Wall(wallX, 0, wallWidth, wallHeight);
                     walls.add(wall);
                 }
                 if (holePosition != 1)
                 {
-                    Wall wall = new Wall(getGameWidth(), wallHeight, wallWidth, wallHeight);
+                    Wall wall = new Wall(wallX, wallHeight, wallWidth, wallHeight);
                     walls.add(wall);
                 }
                 if (holePosition != 2)
                 {
-                    Wall wall = new Wall(getGameWidth(), 2 * wallHeight, wallWidth, wallHeight);
+                    Wall wall = new Wall(wallX, 2 * wallHeight, wallWidth, wallHeight);
                     walls.add(wall);
                 }
 
@@ -77,7 +78,7 @@ public class RopeGame extends AbstractGameEngine
                 int randHeight = random.randomBetween(margin, getGameHeight() - margin);
                 if (rand == 0)
                 {
-                    coins.add((new Coin(getGameWidth() * 1.3, randHeight, 80, 80)));
+                    coins.add((new Coin(wallX + getGameWidth() * .3, randHeight, 80, 80)));
                 }
             }
         };
@@ -99,6 +100,8 @@ public class RopeGame extends AbstractGameEngine
         {
             player.velocity = Player.jumpVelocity;
         }
+
+        double oldPlayerX = player.getX();
         player.update();
 
         boolean passingWall = false;
@@ -106,9 +109,7 @@ public class RopeGame extends AbstractGameEngine
         while (wallIterator.hasNext())
         {
             Wall wall = wallIterator.next();
-            double oldX = wall.getX();
-            wall.update();
-            if (oldX > player.getX() && wall.getX() < player.getX())
+            if (oldPlayerX < wall.getX() && player.getX() > wall.getX())
             {
                 passingWall = true;
             }
@@ -130,8 +131,6 @@ public class RopeGame extends AbstractGameEngine
         while (coinIterator.hasNext())
         {
             Coin coin = coinIterator.next();
-            coin.velocity = (new Vector(-21, 0));
-            coin.update();
             if (EntityCollisions.collideRectangle(player, coin)) //TODO: use circle collision for coins?
             {
                 score++;

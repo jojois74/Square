@@ -14,7 +14,7 @@ import android.view.SurfaceView;
  * Created by Joseph on 10/23/2017.
  */
 
-public abstract class AbstractGameSurfaceView extends SurfaceView implements SurfaceHolder.Callback, Cleanable
+public abstract class AbstractGameSurfaceView extends SurfaceView implements SurfaceHolder.Callback, Cleanable, Screen
 {
     private static final boolean DEBUG_SHOW_BOUNDING_BOXES = false; //TODO: allow to be set from public function
     private SurfaceHolder holder;
