@@ -154,29 +154,17 @@ public class RopeGame extends AbstractGameEngine
     @Override
     protected void saveGameState(GameState gameState)
     {
-        // Save the player.
+        // Store the player for painting.
         gameState.put("player", player);
 
-        //Save the walls.
+        // Store the walls for painting.
         gameState.put("walls", walls);
 
-/*
-        // Save all the walls for interpolation. //TODO: function in GameState to do collections
-        for (Wall wall : walls)
-        {
-            gameState.markForInterpolation(wall);
-        }
-        gameState.saveData("walls", walls);
+        // Store the coins for painting.
+        gameState.put("coins", coins);
 
-        // Save all the coins for interpolation.
-        for (Coin coin : coins)
-        {
-            gameState.markForInterpolation(coin);
-        }
-        gameState.saveData("coins", coins);
-
-        // Save the score.
-        gameState.saveData("score", score);*/
+        // Store the score for painting.
+        gameState.put("score", score);
 /*
         // Save the effect.
         for (ParticleEffect effect : effects)

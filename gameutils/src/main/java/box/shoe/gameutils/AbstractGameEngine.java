@@ -429,6 +429,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                     // Time that passed between the game states in question.
                                     long timeBetween = newState.getTimeStamp() - oldState.getTimeStamp();
                                     interpolationRatio = (frameTimeNanos - newState.getTimeStamp()) / ((double) timeBetween);
+                                    if (interpolationRatio < 0) interpolationRatio = 0; // Spooky action at a distance
                                 }
                                 else
                                 {
@@ -461,12 +462,12 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                             {
                                                 Interpolatables interp = oldInterpolatables.interpolateTo(newInterpolatables, interpolationRatio);
                                                 entity.recallInterpolatables(interp);
-                                                L.d(">" + entity._position.getX(), "interpmsg");
                                                 if (!interp.isEmpty())
-                                                {
+                                                { //TODO: can this error happen? aren't non equal length in and out incompatible error'd?
                                                     throw new IllegalStateException(entity + " not all interpolatables were recalled!");
                                                 }
-                                            } catch (IllegalStateException e)
+                                            }
+                                            catch (IllegalStateException e)
                                             {
                                                 throw new IllegalStateException("Noncompatible interpolations.");
                                             }
