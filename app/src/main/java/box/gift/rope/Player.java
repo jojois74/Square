@@ -36,7 +36,6 @@ public class Player extends Entity implements Paintable
     @Override
     public void paint(Canvas canvas)
     {
-        //System.out.println(_position.getY());
-        canvas.drawRect((int) Math.round(_position.getX()), (int) Math.round(_position.getY()), (int) Math.round((_position.getX() + _width)), (int) Math.round((_position.getY() + _height)), paint);
+        canvas.drawRect((float) _position.getX(), (float) _position.getY(), (float) (_position.getX() + _width), (float) (_position.getY() + _height), paint);
     }
 }

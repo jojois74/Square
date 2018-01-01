@@ -180,8 +180,8 @@ public final class Vector implements Interpolatable<Vector>
     @Override
     public Vector interpolateTo(Vector other, double interpolationRatio)
     {
-        double newX = other.getX() * (interpolationRatio + 1) - (interpolationRatio * getX());
-        double newY = other.getY() * (interpolationRatio + 1) - (interpolationRatio * getY());
+        double newX = getX() * (1 - interpolationRatio) + other.getX() * interpolationRatio;
+        double newY = getY() * (1 - interpolationRatio) + other.getY() * interpolationRatio;
         return new Vector(newX, newY);
     }
 }

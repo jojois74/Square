@@ -19,16 +19,13 @@ public class Entity implements Cleanable //TODO: position should also be vector 
     /*pack*/ static final LinkedList<Entity> ENTITIES = new LinkedList<>();
 
     // Width represents how much horizontal space this takes up.
-    @InterpolateSource(id = "width")
     public double width;
     // Height represents how much vertical space this takes up.
-    @InterpolateSource(id = "height")
     public double height;
 
     // Vector which represents where this is on the screen. Positive direction indicates how far right and up this is on the screen.
     // (In other words, displacement from the origin in the x (rightward) and y (upward) directions.)
     //TODO: make this actually true, override canvas????? (or provide higher level abstraction for drawing...) (right now, positive y is down, not up!)
-    @InterpolateSource(id = "position")
     public Vector position;
     // Vector which represents how many x and y units the position will change by per update.
     public Vector velocity;
@@ -38,15 +35,13 @@ public class Entity implements Cleanable //TODO: position should also be vector 
     // Relatively from the position, where to find the point of origin from which all positioning of this object is calculated.
     public Vector registration; //TODO: make final somehow
 
-    @InterpolateTarget(id = "width")
     public double _width;
-    @InterpolateTarget(id = "height")
     public double _height;
-    @InterpolateTarget(id = "position")
     public Vector _position;
 
     /**
-     * Creates an Entity with the specified x and y coordinates, with no width or height, with no velocity or acceleration.
+     * Creates an Entity with the specified x and y coordinates,
+     * with no width or height, with no velocity or acceleration.
      * @param initialX the starting x coordinate.
      * @param initialY the starting y coordinate.
      */
@@ -56,7 +51,8 @@ public class Entity implements Cleanable //TODO: position should also be vector 
     }
 
     /**
-     * Creates an Entity with the specified x and y coordinates, width and height, with no velocity or acceleration.
+     * Creates an Entity with the specified x and y coordinates,
+     * width and height, with no velocity or acceleration.
      * @param initialX the starting x coordinate.
      * @param initialY the starting y coordinate.
      * @param initialWidth the starting width.
@@ -144,7 +140,7 @@ public class Entity implements Cleanable //TODO: position should also be vector 
     }
 
     @CallSuper
-    public void provideInterpolatables(Interpolatables in)
+    protected void provideInterpolatables(Interpolatables in)
     {
         in.provide(width);
         in.provide(height);
@@ -152,7 +148,7 @@ public class Entity implements Cleanable //TODO: position should also be vector 
     }
 
     @CallSuper
-    public void recallInterpolatables(Interpolatables out)
+    protected void recallInterpolatables(Interpolatables out)
     {
         _width = out.recall();
         _height = out.recall();

@@ -72,7 +72,7 @@ public class Interpolatables
                 {
                     double iObj = (double) obj;
                     double iOtherObj = (double) otherObj;
-                    double i = iOtherObj * (interpolationRatio + 1) - (interpolationRatio * iObj);
+                    double i = iObj * (1 - interpolationRatio) + iOtherObj * interpolationRatio;
                     toReturn.provide(i);
                 }
                 else if (obj instanceof Interpolatable)
@@ -85,5 +85,10 @@ public class Interpolatables
         }
 
         return toReturn;
+    }
+
+    public boolean isEmpty()
+    {
+        return size() == 0;
     }
 }

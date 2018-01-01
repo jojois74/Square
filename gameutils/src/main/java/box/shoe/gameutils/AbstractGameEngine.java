@@ -461,9 +461,14 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                             {
                                                 Interpolatables interp = oldInterpolatables.interpolateTo(newInterpolatables, interpolationRatio);
                                                 entity.recallInterpolatables(interp);
+                                                L.d(">" + entity._position.getX(), "interpmsg");
+                                                if (!interp.isEmpty())
+                                                {
+                                                    throw new IllegalStateException(entity + " not all interpolatables were recalled!");
+                                                }
                                             } catch (IllegalStateException e)
                                             {
-                                                System.out.println("Noncompatible interpolations.");
+                                                throw new IllegalStateException("Noncompatible interpolations.");
                                             }
                                         }
                                     }
