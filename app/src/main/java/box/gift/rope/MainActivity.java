@@ -201,7 +201,7 @@ public class MainActivity extends Activity //TODO: destructive callbacks can do 
             showPauseMenu();
 
             // Tell the game to paint a single frame so that we can see the game.
-            gameEngine.paintOneFrame(); //TODO: timing issues cause frame jumps and visual jumps! low priority fix
+            gameEngine.paintOneFrame(); //TODO: timing issues cause frame jumps and visual jumps! (priority=low)
         }
     }
 

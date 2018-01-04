@@ -7,14 +7,13 @@ import java.util.LinkedList;
 
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
+import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.EntityCollisions;
 import box.shoe.gameutils.GameState;
-import box.shoe.gameutils.GameTasker;
+import box.shoe.gameutils.TaskScheduler;
 import box.shoe.gameutils.L;
-import box.shoe.gameutils.Paintable;
 import box.shoe.gameutils.ParticleEffect;
 import box.shoe.gameutils.Rand;
-import box.shoe.gameutils.Vector;
 
 /**
  * Created by Joseph on 10/23/2017.
@@ -27,17 +26,19 @@ public class RopeGame extends AbstractGameEngine
 
     // Objs
     private Player player;
+    private Entity topBar;
+    private Entity botBar;
     private LinkedList<Wall> walls;
     private LinkedList<Coin> coins;
     private Rand rand;
-    private GameTasker scheduler;
+    private TaskScheduler scheduler;
     private ParticleEffect part;
     private LinkedList<ParticleEffect> effects;
 
     public RopeGame(Context appContext, AbstractGameSurfaceView screen)
     {
         super(appContext, RopeGame.TARGET_UPS, screen);
-        scheduler = new GameTasker(RopeGame.TARGET_UPS);
+        scheduler = new TaskScheduler(RopeGame.TARGET_UPS);
         walls = new LinkedList<>();
         coins = new LinkedList<>();
         effects = new LinkedList<>();
@@ -47,6 +48,10 @@ public class RopeGame extends AbstractGameEngine
     @Override
     protected void initialize()
     {
+        int barHeight = 10;
+        topBar = new Entity(0, getGameHeight(), Integer.MAX_VALUE, barHeight); //TODO: need some way to attach to camera - make fixed.
+        botBar = new Entity(0, 0, Integer.MAX_VALUE, barHeight);
+
         player = new Player(0, 7 * getGameHeight() / 8);
         Runnable generateWallAndCoin = new Runnable()
         {
@@ -82,7 +87,7 @@ public class RopeGame extends AbstractGameEngine
                 }
             }
         };
-        scheduler.register(2700, 0, generateWallAndCoin);
+        scheduler.schedule(2700, 0, generateWallAndCoin);
         generateWallAndCoin.run();
     }
 
@@ -91,7 +96,7 @@ public class RopeGame extends AbstractGameEngine
     {
         scheduler.tick();
 
-        if (player.getY() < 0 || player.getY() > getGameHeight())
+        if (EntityCollisions.collideRectangle(player, topBar) || EntityCollisions.collideRectangle(player, botBar))
         {
             playerDead();
         }
@@ -159,6 +164,11 @@ public class RopeGame extends AbstractGameEngine
 
         // Store the score for painting.
         gameState.put("score", score);
+
+        //Store the bars for painting.
+        gameState.put("top", topBar);
+        gameState.put("bot", botBar);
+
 /*
         // Save the effect.
         for (ParticleEffect effect : effects)

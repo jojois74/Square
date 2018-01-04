@@ -90,6 +90,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     // Etc
     public volatile int score; //TODO: volatile? change signature perhaps when we figure out how we eill give the score to the activity
     protected boolean screenTouched = false;
+    private long gamePausedTimeStamp;
 
     // Fixed display mode - display will attempt to paint
     // pairs of updates for a fixed amount of time (expectedUpdateDelayNS)
@@ -237,8 +238,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             @Override
             public void run()
             {
-
-                L.d("runUpdatesCallback", "rewrite");
                 // Keep track of what time it is now. Goes first to get most accurate timing.
                 long startTime = System.nanoTime();
 
@@ -247,7 +246,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 // (as precise as we can get with postDelayed). This means we manually remove
                 // the callback if the game stops.
                 //updateHandler.removeCallbacksAndMessages(null);
-                updateHandler.postDelayed(this, expectedUpdateTimeMS); //TODO: inject stutter updates to test various drawing schemes
+                updateHandler.postDelayed(this, expectedUpdateTimeMS);
 
                 // Acquire the monitor lock, because we cannot update the game at the same time we are trying to draw it.
                 synchronized (monitorUpdateFrame)
@@ -258,13 +257,15 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     update();
                     screenTouched = false;
 
-                    // Save game state for painting.
+                    // Make new game state with time stamp of the start of this update round.
                     GameState gameState = new GameState();
-                    saveGameState(gameState);
                     gameState.setTimeStamp(startTime);
                     gameStates.add(gameState);
 
-                    // Execute interpolation service for all Entities. and bind to this game state
+                    // Save items to this game state for painting.
+                    saveGameState(gameState);
+
+                    // Execute interpolation service for all Entities and bind to this game state.
                     saveInterpolationFields(gameState);
 
                     // Pause game (postDelayed runnable should not run while this thread is waiting, so no issues there)
@@ -296,7 +297,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     }
 
                     L.d("Update ^", "thread");
-                    //TODO: if updates are consistently taking too long (or even too short!) we can switch visualization modes.
+                    //TODO: if updates are consistently taking too long (or even too short! [impossible?]) we can switch visualization modes.
                 }
             }
         };
@@ -310,12 +311,12 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         LinkedList<Entity> entities = Entity.ENTITIES;
         for (Entity entity : entities)
         {
-            // Generate new Interpolatables.
-            Interpolatables newInterpolatables = new Interpolatables();
-            entity.provideInterpolatables(newInterpolatables);
+            // Generate new InterpolatablesCarrier.
+            InterpolatablesCarrier newInterpolatablesCarrier = new InterpolatablesCarrier();
+            entity.provideInterpolatables(newInterpolatablesCarrier);
 
             // Save to gameState for this Entity.
-            gameState.interps.put(entity, newInterpolatables);
+            gameState.interps.put(entity, newInterpolatablesCarrier);
         }
     }
 
@@ -427,6 +428,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 //double interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) timeBetween);
                                 double interpolationRatio;
 
+                                // TODO: auto switch paint modes in response to update lag. priority=low
                                 if (displayMode == DIS_MODE_FIX_UPDATE_DISPLAY_DURATION)
                                 {
                                     interpolationRatio = (frameTimeNanos - newState.getTimeStamp()) / ((double) expectedUpdateTimeNS);
@@ -460,14 +462,14 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                     List<Entity> entities = Entity.ENTITIES;
                                     for (Entity entity : entities)
                                     {
-                                        Interpolatables oldInterpolatables = oldState.interps.get(entity);
-                                        Interpolatables newInterpolatables = newState.interps.get(entity);
+                                        InterpolatablesCarrier oldInterpolatablesCarrier = oldState.interps.get(entity);
+                                        InterpolatablesCarrier newInterpolatablesCarrier = newState.interps.get(entity);
 
-                                        if (oldInterpolatables != null && newInterpolatables != null)
+                                        if (oldInterpolatablesCarrier != null && newInterpolatablesCarrier != null)
                                         {
                                             try
                                             {
-                                                Interpolatables interp = oldInterpolatables.interpolateTo(newInterpolatables, interpolationRatio);
+                                                InterpolatablesCarrier interp = oldInterpolatablesCarrier.interpolateTo(newInterpolatablesCarrier, interpolationRatio);
                                                 entity.recallInterpolatables(interp);
                                                 if (!interp.isEmpty())
                                                 { //TODO: can this error happen? aren't non equal length in and out incompatible error'd?
@@ -499,7 +501,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 else
                                 {
                                     gameScreen.unlockCanvasAndClear();
-                                    paintedFrame = true; // This shoulc count for the purpose of paintOneFrame because there is never going to be another valid GameState anyway if there isn't already
+                                    paintedFrame = true; // This should count for the purpose of paintOneFrame because there is never going to be another valid GameState anyway if there isn't already
+                                    paintedFrame = true; // This should count for the purpose of paintOneFrame because there is never going to be another valid GameState anyway if there isn't already
                                 }
                                 break;
                             }
@@ -514,6 +517,13 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     L.d("end of sync block", "rewrite2");
                 }
                 L.d("after sync block", "rewrite2");
+
+                // Prepare for next frame now, when we have all the time in the world.
+                // TODO: only do this if we actually have extra time, do not miss next frame callback!
+                /*if (gameScreen.canVisualize() && !gameScreen.preparedToVisualize())
+                {
+                    gameScreen.prepareVisualize();
+                }*/
             }
         };
         vsync.postFrameCallback(frameCallback);
@@ -641,6 +651,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             e.printStackTrace();
         }
 
+        gamePausedTimeStamp = System.nanoTime();
         paused = true;
         L.d("after pausing in abstract game engine", "pause");
     }
@@ -649,10 +660,19 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     {
         if (!isActive())
         {
-            Log.w("F", "Cannot unpause game that isn't active.");
+            Log.w("F", "Cannot resume game that isn't active.");
             return;
         }
-        Log.d("G", "Unpausing game");
+        Log.d("G", "Resuming game");
+
+        // When we resume, time has passed, so push game states ahead
+        // because they are not invalid yet. (Visual fix).
+        long currentTimeStamp = System.nanoTime();
+        long sincePause = currentTimeStamp - gamePausedTimeStamp;
+        for (GameState gameState : gameStates)
+        {
+            gameState.setTimeStamp(gameState.getTimeStamp() + sincePause);
+        }
 
         pauseThreads = false;
         paused = false;

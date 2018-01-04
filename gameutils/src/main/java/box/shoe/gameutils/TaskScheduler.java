@@ -10,18 +10,18 @@ import java.util.Set;
  * Created by Joseph on 10/26/2017.
  */
 
-public class GameTasker implements Cleanable
+public class TaskScheduler implements Cleanable
 {
     private double UPMS; // Updates per millisecond
     private Set<Task> tasks;
 
-    public GameTasker(int UPS)
+    public TaskScheduler(int UPS)
     {
         this.UPMS = UPS / 1000.0;
         tasks = new HashSet<>();
     }
 
-    public void register(int ms, int repetitions, Runnable schedulable) //0 for repetions means eternal, ms accurate to within about 10ms if tick() is called on an AbstractGameEngine update
+    public void schedule(int ms, int repetitions, Runnable schedulable) //0 for repetitions means eternal, ms accurate to within about 10ms if tick() is called on an AbstractGameEngine update
     {
         tasks.add(new Task((int) Math.round(UPMS * ms), repetitions, schedulable));
     }
@@ -36,9 +36,11 @@ public class GameTasker implements Cleanable
         Iterator<Task> iterator = tasks.iterator();
         while (iterator.hasNext())
         {
-            boolean removeEvent = iterator.next().tock();
-            if (removeEvent)
+            boolean taskExhausted = iterator.next().tock();
+            if (taskExhausted)
+            {
                 iterator.remove();
+            }
         }
     }
 
@@ -70,7 +72,8 @@ public class GameTasker implements Cleanable
             this.maxRepetitions = repetitions;
             if (this.maxFrames == 0)
             {
-                throw new IllegalArgumentException("This event is scheduled to occur every 0 frames at this UPS. Events must be scheduled for the future.");
+                throw new IllegalArgumentException("This event is scheduled to occur every" +
+                        "0 frames at this UPS. Events must be scheduled for the future.");
             }
             this.schedulable = schedulable;
         }
@@ -99,9 +102,9 @@ public class GameTasker implements Cleanable
         {
             if (otherObject == null)
                 return false;
-            Task otherTask = (Task) otherObject;
-            if (otherTask.getClass() != getClass())
+            if (otherObject.getClass() != getClass())
                 return false;
+            Task otherTask = (Task) otherObject;
             if (maxFrames == otherTask.maxFrames && schedulable.equals(otherTask.schedulable))
             {
                 return true;

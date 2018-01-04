@@ -1,20 +1,17 @@
 package box.shoe.gameutils;
 
-import android.os.Parcel;
-
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
 
 /**
  * Created by Joseph on 12/31/2017.
  */
 
-public class Interpolatables
+public class InterpolatablesCarrier
 {
     private LinkedList<Object> interps;
 
-    public Interpolatables()
+    public InterpolatablesCarrier()
     {
         interps = new LinkedList<>();
     }
@@ -45,15 +42,15 @@ public class Interpolatables
         return interps.size();
     }
 
-    /*pack*/ Interpolatables interpolateTo(Interpolatables other, double interpolationRatio)
+    /*pack*/ InterpolatablesCarrier interpolateTo(InterpolatablesCarrier other, double interpolationRatio)
     {
         // First, check size compatibility
         if (size() != other.size())
         {
-            throw new IllegalStateException("Interpolatables not compatible.");
+            throw new IllegalStateException("InterpolatablesCarrier not compatible.");
         }
 
-        Interpolatables toReturn = new Interpolatables();
+        InterpolatablesCarrier toReturn = new InterpolatablesCarrier();
 
         Iterator<Object> iterator = interps.iterator();
         Iterator<Object> otherIterator = other.interps.iterator();
@@ -64,7 +61,7 @@ public class Interpolatables
 
             if (!obj.getClass().equals(otherObj.getClass()))
             {
-                throw new IllegalStateException("Interpolatables not compatible.");
+                throw new IllegalStateException("InterpolatablesCarrier not compatible.");
             }
             else
             {
@@ -89,6 +86,9 @@ public class Interpolatables
 
     public boolean isEmpty()
     {
-        return size() == 0;
+        // For some reason this checks for size() == 0. (according to docs)
+        // That is O(n), while isEmpty should be an O(1) check.
+        // Remedy: scream at top of lungs!
+        return interps.isEmpty();
     }
 }

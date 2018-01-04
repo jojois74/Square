@@ -47,7 +47,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         {
             throw new IllegalStateException("Surface is not ready to paint. Please call canVisualize() to check.");
         }
-        canvas = holder.lockCanvas(null);
+        canvas = holder.lockCanvas();
 
         // Set coordinate origin to (0, 0) and make +x = right, +y = up.
         canvas.translate(0, canvas.getHeight());

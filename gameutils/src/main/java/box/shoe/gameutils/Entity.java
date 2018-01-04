@@ -3,9 +3,7 @@ package box.shoe.gameutils;
 import android.annotation.SuppressLint;
 import android.support.annotation.CallSuper;
 
-import java.util.Collection;
 import java.util.LinkedList;
-import java.util.List;
 
 /**
  * Created by Joseph on 12/9/2017.
@@ -109,6 +107,20 @@ public class Entity implements Cleanable //TODO: position should also be vector 
         ENTITIES.remove(entity);
     }
 
+    // Lay groundwork for Entity pool
+    public Entity fromPool(double initialX, double initialY, double initialWidth, double initialHeight)
+    {
+        return fromPool(initialX, initialY, initialWidth, initialHeight, Vector.ZERO, Vector.ZERO);
+    }
+    public Entity fromPool(double initialX, double initialY, double initialWidth, double initialHeight, Vector initialVelocity)
+    {
+        return fromPool(initialX, initialY, initialWidth, initialHeight, initialVelocity, Vector.ZERO);
+    }
+    public Entity fromPool(double initialX, double initialY, double initialWidth, double initialHeight, Vector initialVelocity, Vector initialAcceleration)
+    {
+        return null;
+    }
+
     /**
      * Updates velocity based on current acceleration, and then updates position based on new velocity.
      * We do not need to multiply by dt because every timestep is of equal length.
@@ -132,7 +144,7 @@ public class Entity implements Cleanable //TODO: position should also be vector 
 
     /**
      * Convenience accessor function for returning the x position.
-     * (Postcondition: getX() == position.getX())
+     * (Contract: getX() == position.getX())
      * @return the x position.
      */
     public double getX()
@@ -142,7 +154,7 @@ public class Entity implements Cleanable //TODO: position should also be vector 
 
     /**
      * Convenience accessor function for returning the y position.
-     * (Postcondition: getY() == position.getY())
+     * (Contract: getY() == position.getY())
      * @return the y position.
      */
     public double getY()
@@ -150,8 +162,28 @@ public class Entity implements Cleanable //TODO: position should also be vector 
         return position.getY();
     }
 
+    /**
+     * Convenience accessor function for returning the interpolated x position.
+     * (Contract: _getX() == _position.getX())
+     * @return the x position.
+     */
+    public double _getX()
+    {
+        return _position.getX();
+    }
+
+    /**
+     * Convenience accessor function for returning the interpolated y position.
+     * (Contract: _getY() == _position.getY())
+     * @return the y position.
+     */
+    public double _getY()
+    {
+        return _position.getY();
+    }
+
     @CallSuper
-    protected void provideInterpolatables(Interpolatables in)
+    protected void provideInterpolatables(InterpolatablesCarrier in)
     {
         in.provide(width);
         in.provide(height);
@@ -159,7 +191,7 @@ public class Entity implements Cleanable //TODO: position should also be vector 
     }
 
     @CallSuper
-    protected void recallInterpolatables(Interpolatables out)
+    protected void recallInterpolatables(InterpolatablesCarrier out)
     {
         _width = out.recall();
         _height = out.recall();

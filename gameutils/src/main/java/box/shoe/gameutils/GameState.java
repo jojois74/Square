@@ -1,5 +1,7 @@
 package box.shoe.gameutils;
 
+import android.support.annotation.NonNull;
+
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -12,7 +14,7 @@ public class GameState
 {
     private long timeStamp;
     private Map<String, Object> data;
-    /*pack*/ IdentityHashMap<Entity, Interpolatables> interps;
+    /*pack*/ IdentityHashMap<Entity, InterpolatablesCarrier> interps;
 
     /*pack*/ GameState()
     {
