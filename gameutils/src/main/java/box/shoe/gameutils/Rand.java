@@ -9,7 +9,7 @@ public class Rand extends Random
         super();
     }
 
-    public int randomBetween(int min, int max)
+    public int intFrom(int min, int max)
     {
         return nextInt(max + 1 - min) + min;
     }

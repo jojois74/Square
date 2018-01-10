@@ -3,6 +3,7 @@ package box.gift.rope;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 
 import java.util.LinkedList;
 
@@ -19,7 +20,7 @@ import box.shoe.gameutils.Vector;
 
 public class RopeScreen extends AbstractGameSurfaceView
 {
-    FollowCamera camera;
+    private Paint paint;
 
     /* For tool use only (xml layout viewer will construct views to display) */
     private RopeScreen(Context context)
@@ -36,13 +37,13 @@ public class RopeScreen extends AbstractGameSurfaceView
 
     private void init()
     {
-        camera = new FollowCamera(FollowCamera.FOLLOW_X);
+        paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     }
 
     @Override
     public void initialize()
     {
-        camera.setOffset(new Vector(getWidth() / 10, 0));
+
     }
 
     @Override
@@ -61,15 +62,18 @@ public class RopeScreen extends AbstractGameSurfaceView
     protected void paint(Canvas canvas, GameState gameState)
     {
         Player player = gameState.get("player");
-        camera.follow(player);
 
         // Background
-        canvas.drawColor(Color.WHITE);
-
-        camera.view(canvas);
+        canvas.drawColor(Color.BLACK);
 
         // Player
         player.paint(canvas);
+
+        // Top and Bottom
+        Paintable topBar = gameState.get("top");
+        Paintable botBar = gameState.get("bot");
+        topBar.paint(canvas);
+        botBar.paint(canvas);
 
         // Walls
         LinkedList<Paintable> walls = gameState.get("walls");
@@ -85,22 +89,16 @@ public class RopeScreen extends AbstractGameSurfaceView
             coin.paint(canvas);
         }
 
-        camera.unview(canvas);
-
-        // Top and Bottom
-        paint.setColor(Color.RED);
-        int thickness = 14;
-        canvas.drawRect(0, 0, getWidth(), thickness, paint);
-        canvas.drawRect(0, getHeight() - thickness, getWidth(), getHeight(), paint);
-
-        // Score - drawing text is a pain. We flipped the canvas to get first quadrant coords,
-        // but now we must temporarily reverse so our text isn't flipped!
-        canvas.save();
-        canvas.scale(1, -1);
-        canvas.translate(0, -canvas.getHeight());
+        // Score
         paint.setTextSize(50);
         paint.setColor(Color.BLUE);
         canvas.drawText("Score: " + String.valueOf(gameState.get("score")), 40, 90, paint);
-        canvas.restore();
+    }
+
+    @Override
+    public void cleanup()
+    {
+        super.cleanup();
+        paint = null;
     }
 }

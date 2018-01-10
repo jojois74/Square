@@ -1,5 +1,7 @@
 package box.shoe.gameutils;
 
+import android.annotation.SuppressLint;
+
 import java.util.Iterator;
 import java.util.LinkedList;
 
@@ -7,7 +9,7 @@ import java.util.LinkedList;
  * Created by Joseph on 12/31/2017.
  */
 
-public class InterpolatablesCarrier
+public class InterpolatablesCarrier implements Cleanable
 {
     private LinkedList<Object> interps;
 
@@ -90,5 +92,12 @@ public class InterpolatablesCarrier
         // That is O(n), while isEmpty should be an O(1) check.
         // Remedy: scream at top of lungs!
         return interps.isEmpty();
+    }
+
+    @SuppressLint("MissingSuperCall")
+    @Override
+    public void cleanup()
+    {
+        interps = null;
     }
 }

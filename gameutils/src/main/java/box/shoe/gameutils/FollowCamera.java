@@ -2,6 +2,7 @@ package box.shoe.gameutils;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Rect;
 
 /**
  * Created by Joseph on 1/1/2018.

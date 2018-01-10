@@ -21,9 +21,8 @@ public class Entity implements Cleanable //TODO: position should also be vector 
     // Height represents how much vertical space this takes up.
     public double height;
 
-    // Vector which represents where this is on the screen. Positive direction indicates how far right and up this is on the screen.
-    // (In other words, displacement from the origin in the x (rightward) and y (upward) directions.)
-    //TODO: make this actually true, override canvas????? (or provide higher level abstraction for drawing...) (right now, positive y is down, not up!)
+    // Vector which represents where this is on the screen. Positive direction indicates how far right and down this is on the screen.
+    // (In other words, displacement from the (top-left) origin in the x (rightward) and y (downward) directions.)
     public Vector position;
     // Vector which represents how many x and y units the position will change by per update.
     public Vector velocity;

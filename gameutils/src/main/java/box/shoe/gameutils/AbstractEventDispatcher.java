@@ -1,5 +1,7 @@
 package box.shoe.gameutils;
 
+import android.annotation.SuppressLint;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,7 +11,7 @@ import java.util.Map;
  * Created by Joseph on 11/30/2017.
  */
 
-public abstract class AbstractEventDispatcher
+public abstract class AbstractEventDispatcher implements Cleanable
 {
     private Map<String, List<Runnable>> listeners;
 
@@ -46,5 +48,12 @@ public abstract class AbstractEventDispatcher
                 runnable.run();
             }
         }
+    }
+
+    @SuppressLint("MissingSuperCall")
+    @Override
+    public void cleanup()
+    {
+        listeners = null;
     }
 }

@@ -5,7 +5,6 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.Vibrator;
 import android.support.annotation.IntDef;
 import android.util.Log;
 import android.view.Choreographer;
@@ -29,7 +28,7 @@ import box.gift.gameutils.R;
  * Game updates are run at a frequency determined by the supplied UPS given in the constructor.
  * Frames are painted at each new VSYNC (Screen refresh), supplied by internal Choreographer.
  * Because these are not aligned, the engine interpolates between two game states for frame painting based on time,
- * and gives the interpolated game state to the AbstractGameSurfaceView supplied to the constructor.
+ * and gives the interpolated game state to the Screen supplied to the constructor.
  */
 public abstract class AbstractGameEngine extends AbstractEventDispatcher implements Cleanable
 { //TODO: remove isActive()/isPlaying() and replace with a single state variable.
@@ -51,7 +50,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     private final long expectedUpdateTimeNS;
 
     // The screen which will display a representation of the state of the game.
-    private final AbstractGameSurfaceView gameScreen;
+    private final Screen gameScreen;
 
     private Context appContext;
 
@@ -63,22 +62,23 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     private volatile boolean stopThreads = false;
     private volatile boolean paused = false;
     private volatile boolean pauseThreads = false;
-    private volatile boolean oneFrameThenPause = false;
-    private volatile int numberOfThreadsThatNeedToPause = 0;
     private volatile int state = AbstractGameEngine.INACTIVE;
 
     // Threads
     private Thread updateThread;
+    private Looper updateThreadLooper;
     private Thread frameThread;
+    private Looper frameThreadLooper;
+    private final int NUMBER_OF_THREADS = 2;
 
     // Concurrent - for simplicity, define as few as possible.
     private final Object monitorUpdateFrame = new Object();
+    private final Object monitorControl = new Object();
     private CountDownLatch pauseLatch; // Makes sure all necessary threads pause before returning pauseGame.
+    private CountDownLatch stopLatch; // Makes sure all necessary threads stop before returning stopGame.
 
     // Objs - remember to cleanup those that can be!
     private Choreographer vsync;
-    protected Rand random;
-    protected Vibrator rumble;
     private List<GameState> gameStates; // We want to use it like a queue, but we need to access the first two elements, so it cannot be one.
     private GameState lastVisualizedGameState;
 
@@ -88,7 +88,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     public static final int PAUSED = 2;
 
     // Etc
-    public volatile int score; //TODO: volatile? change signature perhaps when we figure out how we eill give the score to the activity
     protected boolean screenTouched = false;
     private long gamePausedTimeStamp;
 
@@ -119,7 +118,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     // Default it to 0 if our API level is not high enough to get the real value.
     private long vsyncOffsetNanos = 0;
 
-    public AbstractGameEngine(Context appContext, @UPS_Options int targetUPS, AbstractGameSurfaceView screen) //target ups should divide evenly into 1000000000, updates are accurately caleld to within about 10ms
+    public AbstractGameEngine(Context appContext, @UPS_Options int targetUPS, Screen screen) //target ups should divide evenly into 1000000000, updates are accurately caleld to within about 10ms
     {
         this.appContext = appContext;
 
@@ -135,27 +134,28 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         this.expectedUpdateTimeNS = this.expectedUpdateTimeMS * 1000000;
 
         gameStates = new LinkedList<>();
-        random = new Rand();
-        rumble = (Vibrator) appContext.getSystemService(Context.VIBRATOR_SERVICE);
 
-        //Setup the 'Updates' thread.
+        // Setup the 'Updates' thread.
         updateThread = new Thread(new Runnable()
         {
             @Override
             public void run()
             {
-                numberOfThreadsThatNeedToPause++;
+                Looper.prepare();
+                updateThreadLooper = Looper.myLooper();
                 runUpdates();
+
             }
         }, appContext.getString(R.string.update_thread_name));
 
-        //Setup the 'Frames' thread.
+        // Setup the 'Frames' thread.
         frameThread = new Thread(new Runnable()
         {
             @Override
             public void run()
             {
-                numberOfThreadsThatNeedToPause++;
+                Looper.prepare();
+                frameThreadLooper = Looper.myLooper();
                 runFrames();
             }
         }, appContext.getString(R.string.frame_thread_name));
@@ -228,7 +228,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             throw new IllegalThreadStateException("Can only be called from updateThread!");
         }
 
-        Looper.prepare();
         final Handler updateHandler = new Handler();
 
         Runnable updateCallback = new Runnable()
@@ -292,7 +291,9 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     // Stop thread.
                     if (stopThreads)
                     {
+                        L.d("stop updates", "gameOver");
                         updateHandler.removeCallbacksAndMessages(null);
+                        stopLatch.countDown();
                         return;
                     }
 
@@ -328,7 +329,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             throw new IllegalThreadStateException("Can only be called from frameThread!");
         }
 
-        Looper.prepare();
         vsync = Choreographer.getInstance();
 
         Choreographer.FrameCallback frameCallback = new Choreographer.FrameCallback()
@@ -338,14 +338,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             @Override
             public void doFrame(long frameTimeNanos)
             {
-                // Must ask for new callback each frame!
-                // We ask at the start because the Choreographer automatically
-                // skips frames for us if we don't draw fast enough,
-                // and it will make a Log.i to let us know that it skipped frames (so we know)
-                // If we move it to the end we essentially manually skip frames,
-                // but we won't know that an issue occurred.
-                vsync.postFrameCallback(this);
-
                 // Correct for minor difference in vsync time.
                 // This is probably totally unnecessary. (And will only change frameTimeNanos in a sufficiently high API anyway)
                 frameTimeNanos -= vsyncOffsetNanos;
@@ -355,13 +347,25 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
                     // Pause game
                     // Spin lock when we want to pause
-                    while (pauseThreads && !oneFrameThenPause)
+                    while (pauseThreads)
                     {
                         try
                         {
                             // Do not count down the latch off spurious wakeup!
                             if (!frameThreadPaused)
                             {
+                                if (gameScreen.hasPreparedPaint())
+                                {
+                                    if (lastVisualizedGameState != null)
+                                    {
+                                        gameScreen.paintFrame(lastVisualizedGameState);
+                                    }
+                                    else
+                                    {
+                                        // Unlock the canvas without posting anything.
+                                        gameScreen.unpreparePaint();
+                                    }
+                                }
                                 pauseLatch.countDown();
                                 L.d("pausedFrames", "pause");
                             }
@@ -375,41 +379,24 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                         }
                     }
                     frameThreadPaused = false;
-                    L.d("between pause and stop", "rewrite2");
+
                     // Stop game if prompted
                     if (stopThreads)
                     {
-                        // Since we asked for the callback up above,
-                        // we should remove it if we plan on quiting
-                        // so we do not do an extra callback.
-                        L.d("about to remove callback", "rewrite2");
-                        vsync.removeFrameCallback(this);
-                        L.d("removed callback", "rewrite2");
-                        if (gameScreen.preparedToVisualize())
-                        {
-                            if (lastVisualizedGameState != null)
-                            {
-                                gameScreen.visualize(lastVisualizedGameState);
-                            }
-                            else
-                            {
-                                // Unlock the canvas without posting anything.
-                                gameScreen.unlockCanvasAndClear();
-                            }
-                        }
+                        stopLatch.countDown();
                         return;
                     }
 
-                    // Acquire the canvas lock now to save time later (this can be an expensive operation!) //TODO: this saves no time unless does async, or while waiting for synchronize lock. That may be a bad idea since 1) we may give up our synchronize cahnce and 2) we need to release the canvas prepare lock on stop or pause
-                    if (gameScreen.canVisualize() && !gameScreen.preparedToVisualize())
-                    {
-                        gameScreen.prepareVisualize();
-                    }
-
-                    boolean paintedFrame = false;
+                    // Must ask for new callback each frame!
+                    // We ask at the start because the Choreographer automatically
+                    // skips frames for us if we don't draw fast enough,
+                    // and it will make a Log.i to let us know that it skipped frames (so we know)
+                    // If we move it to the end we essentially manually skip frames,
+                    // but we won't know that an issue occurred.
+                    vsync.postFrameCallback(this);
 
                     // Paint frame
-                    if (gameScreen.preparedToVisualize())
+                    if (gameScreen.hasPreparedPaint())
                     {
                         GameState oldState;
                         GameState newState;
@@ -483,8 +470,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                         }
                                     }
 
-                                    gameScreen.visualize(newState);
-                                    paintedFrame = true;
+                                    gameScreen.paintFrame(newState);
                                     lastVisualizedGameState = newState;
                                     break;
                                 }
@@ -494,24 +480,20 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 Log.w("T", "We want to draw but there aren't enough new updates!");
                                 if (lastVisualizedGameState != null)
                                 {
-                                    gameScreen.visualize(lastVisualizedGameState);
-                                    paintedFrame = true;
+                                    gameScreen.paintFrame(lastVisualizedGameState);
                                     Log.w("T", " Using previous valid state.");
                                 }
                                 else
                                 {
-                                    gameScreen.unlockCanvasAndClear();
-                                    paintedFrame = true; // This should count for the purpose of paintOneFrame because there is never going to be another valid GameState anyway if there isn't already
-                                    paintedFrame = true; // This should count for the purpose of paintOneFrame because there is never going to be another valid GameState anyway if there isn't already
+                                    gameScreen.unpreparePaint();
                                 }
                                 break;
                             }
                         }
                     }
-
-                    if (paintedFrame)
+                    else
                     {
-                        oneFrameThenPause = false;
+                        Log.i("Frames", "Skipped painting frame because unprepared");
                     }
                     L.d("Frame ^", "thread");
                     L.d("end of sync block", "rewrite2");
@@ -520,12 +502,13 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
                 // Prepare for next frame now, when we have all the time in the world.
                 // TODO: only do this if we actually have extra time, do not miss next frame callback!
-                /*if (gameScreen.canVisualize() && !gameScreen.preparedToVisualize())
+                if (gameScreen.hasInitialized() && !gameScreen.hasPreparedPaint())
                 {
-                    gameScreen.prepareVisualize();
-                }*/
+                    gameScreen.preparePaint();
+                }
             }
         };
+        //Looper.myLooper().setMessageLogging(new LogPrinter(Log.DEBUG, "Looper"));
         vsync.postFrameCallback(frameCallback);
         Looper.loop();
     }
@@ -533,137 +516,164 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
     /**
      * Stop update and frame threads.
+     * Stop update and frame threads.
      * After the threads finish their current loop execution,
      * The game will then call the subclasses cleanup.
      */
     public void stopGame()
     {
-        if (!Thread.currentThread().getName().equals("main"))
+        L.d("Stop Game outer", "gameOver");
+        synchronized (monitorControl)
         {
-            //Log.w("T", "Was not called from the main thread, instead from: " + Thread.currentThread().getName() + ". Will be run from the Main thread instead.");
-            throw new IllegalThreadStateException("Must be called from main thread");
-        }
+            L.d("Stop Game inner", "gameOver");
+            if (Thread.currentThread().getName().equals(appContext.getString(R.string.update_thread_name)))
+            {
+                throw new IllegalThreadStateException("Cannot be called from "
+                        + appContext.getString(R.string.update_thread_name)
+                        + " thread, because it cannot stop itself!");
+            }
+            else if (Thread.currentThread().getName().equals(appContext.getString(R.string.frame_thread_name)))
+            {
+                throw new IllegalThreadStateException("Cannot be called from "
+                        + appContext.getString(R.string.frame_thread_name)
+                        + " thread, because it cannot stop itself!");
+            }
 
-        stopThreads = true; //TODO: synchronize this?
+            if (stopThreads)
+            {
+                throw new IllegalStateException("Engine already in process of stopping!");
+            }
 
-        // Check if we are paused.
-        if (!isPlaying())
-        {
-            L.d("unpause in stop", "rewrite2");
-            // We will need to unpause the game if we are currently paused in order to stop it.
+            if (!isActive())
+            {
+                throw new IllegalStateException("Cannot stop if game is not active!");
+            }
+
+            // Check if we are paused.
+            if (isPlaying())
+            {
+                L.d("pause in stop", "gameOver");
+                pauseGame();
+            }
+
+            L.d("attempt to stop", "lifecycle2");
+            stopLatch = new CountDownLatch(NUMBER_OF_THREADS);
+            stopThreads = true; //TODO: synchronize this?
+
+            L.d("unpause in stop", "gameOver");
             resumeGame();
-        }
 
-        try
-        {
-            updateThread.join();
-            frameThread.join();
-        }
-        catch (InterruptedException e)
-        {
-            e.printStackTrace();
-        }
-
-        stopped = true;
-
-        /*
-        Handler mainHandler = new Handler(appContext.getMainLooper());
-        mainHandler.post(new Runnable()
-        {
-            @Override
-            public void run()
+            try
             {
-                try
+                stopLatch.await();
+                System.out.println("After await");
+            }
+            catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+
+            // Make sure the threads have actually returned from their callbacks
+            // before stopping the Loopers. This ensures that the Handlers can gracefully
+            // finish processing their messages before we wrench the Loopers from their cold,
+            // dead hands. Therefore, wait until we can grab the lock.
+            synchronized (monitorUpdateFrame)
+            {
+                L.d("Stop Game inner inner", "gameOver");
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2)
                 {
-                    updateThread.join();
-                    frameThread.join();
-                    L.d("Two threads stopped", "stop");
+                    updateThreadLooper.quitSafely();
+                    frameThreadLooper.quitSafely();
                 }
-                catch (InterruptedException e)
+                else
                 {
-                    e.printStackTrace();
-                }
-                finally
-                {
-                    L.d("Finally running", "stop");
-                    cleanup();
-                    dispatchEvent(GameEventConstants.GAME_OVER);
+                    updateThreadLooper.quit();
+                    frameThreadLooper.quit();
                 }
             }
-        });*/
-    }
 
-    /**
-     * Cleanup and garbage collect here, which will run before the superclass cleans.
-     */
-    @SuppressLint("MissingSuperCall") //Because this is the top level implementor
-    public void cleanup()
-    {
-        Log.d("h", "CLEANUP");
-        vsync = null;
-        random = null;
-        rumble = null;
-        updateThread = null;
-        frameThread = null;
+            stopped = true;
+            stopThreads = false;
 
-        //Cleanup gameScreen TODO: more
-        gameScreen.setOnTouchListener(new View.OnTouchListener()
-        {
-            @Override
-            public boolean onTouch(View v, MotionEvent event)
-            {
-                v.performClick();
-                return false;
-            }
-        });
+            L.d("Game stopped", "lifecycle2");
+        }
     }
 
     /**
      * Pause the threads
      */
-    public void pauseGame() //TODO: should only be called from main thread?
+    public void pauseGame()
     {
-        /*if (Thread.currentThread().equals(updateThread) || Thread.currentThread().equals(frameThread))
+        synchronized (monitorControl)
         {
+            if (Thread.currentThread().getName().equals(appContext.getString(R.string.update_thread_name)))
+            {
+                throw new IllegalThreadStateException("Cannot be called from "
+                        + appContext.getString(R.string.update_thread_name)
+                        + " thread, because it cannot stop itself!");
+            }
+            else if (Thread.currentThread().getName().equals(appContext.getString(R.string.frame_thread_name)))
+            {
+                throw new IllegalThreadStateException("Cannot be called from "
+                        + appContext.getString(R.string.frame_thread_name)
+                        + " thread, because it cannot stop itself!");
+            }
+
+            if (pauseThreads)
+            {
+                throw new IllegalStateException("Engine already in process of pausing!");
+            }
+
+            if (!isActive())
+            {
+                throw new IllegalStateException("Cannot pause game that isn't running!");
+            }
+
+            L.d("pausing in abstract game engine", "pause");
+
+            pauseLatch = new CountDownLatch(NUMBER_OF_THREADS);
+
+            // Tell threads to pause
             pauseThreads = true;
-            return;
-        }*/
-        if (!isActive())
-        {
-            Log.w("F", "No need to pause game that isn't running.");
-            return;
+
+            try
+            {
+                pauseLatch.await();
+            }
+            catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+
+            gamePausedTimeStamp = System.nanoTime();
+            paused = true;
+            L.d("after pausing in abstract game engine", "pause");
         }
-
-        L.d("pausing in abstract game engine", "pause");
-
-        // 1 frame thread + 1 update thread = 2
-        pauseLatch = new CountDownLatch(numberOfThreadsThatNeedToPause);
-
-        // Tell threads to pause
-        pauseThreads = true;
-
-        try
-        {
-            pauseLatch.await();
-        }
-        catch (InterruptedException e)
-        {
-            e.printStackTrace();
-        }
-
-        gamePausedTimeStamp = System.nanoTime();
-        paused = true;
-        L.d("after pausing in abstract game engine", "pause");
     }
 
     public void resumeGame()
     {
+        if (Thread.currentThread().getName().equals(appContext.getString(R.string.update_thread_name)))
+        {
+            throw new IllegalThreadStateException("Cannot be called from "
+                    + appContext.getString(R.string.update_thread_name)
+                    + " thread, because it cannot resume itself!");
+        }
+        else if (Thread.currentThread().getName().equals(appContext.getString(R.string.frame_thread_name)))
+        {
+            throw new IllegalThreadStateException("Cannot be called from "
+                    + appContext.getString(R.string.frame_thread_name)
+                    + " thread, because it cannot resume itself!");
+        }
         if (!isActive())
         {
-            Log.w("F", "Cannot resume game that isn't active.");
-            return;
+            throw new IllegalStateException("Cannot resume game that isn't active.");
         }
-        Log.d("G", "Resuming game");
+        if (isPlaying())
+        {
+            throw new IllegalStateException("Cannot resume game that isn't paused.");
+        }
+        Log.d("resumeGame()", "Resuming game");
 
         // When we resume, time has passed, so push game states ahead
         // because they are not invalid yet. (Visual fix).
@@ -671,37 +681,13 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         long sincePause = currentTimeStamp - gamePausedTimeStamp;
         for (GameState gameState : gameStates)
         {
-            gameState.setTimeStamp(gameState.getTimeStamp() + sincePause);
+            gameState.setTimeStamp(gameState.getTimeStamp() + sincePause);// + 1000000);
         }
 
         pauseThreads = false;
         paused = false;
         synchronized (monitorUpdateFrame)
         {
-            monitorUpdateFrame.notifyAll();
-        }
-    }
-
-    /**
-     * When the app resumes and the game is paused, the surface view will have cleared.
-     * Use this function to paint a single new frame onto the view if you are not unpausing right away.
-     */
-    public void paintOneFrame()
-    {
-        L.d("paintOneFrame", "p");
-        synchronized (monitorUpdateFrame)
-        {
-            if (isPlaying())
-            {
-                throw new IllegalStateException("Game must be paused first!");
-            }
-
-            // Set the flag which allows the frame thread to escape from pause for one frame
-            oneFrameThenPause = true;
-
-            // Wakeup the frame thread.
-            // We use notify all to make sure the frame thread gets woken.
-            // The update thread will immediately wait() because the game is still paused.
             monitorUpdateFrame.notifyAll();
         }
     }
@@ -754,5 +740,38 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         {
             screenTouched = false;
         }
+    }
+
+    public abstract int getResult(); //TODO: remove eventually when we separate game engines from score game engines
+
+    @SuppressLint("MissingSuperCall") //Because this is the top level implementor
+    @Override
+    public void cleanup()
+    {
+        vsync = null;
+        updateThread = null;
+        frameThread = null;
+
+        for (GameState gameState : gameStates)
+        {
+            gameState.cleanup();
+        }
+        gameStates = null;
+
+        //Cleanup gameScreen TODO: more
+        gameScreen.setOnTouchListener(new View.OnTouchListener()
+        {
+            @Override
+            public boolean onTouch(View v, MotionEvent event)
+            {
+                v.performClick();
+                return false;
+            }
+        });
+
+        frameThreadLooper = null;
+        updateThreadLooper = null;
+        updateThread = null;
+        frameThread = null;
     }
 }

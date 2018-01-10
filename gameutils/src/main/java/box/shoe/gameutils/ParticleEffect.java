@@ -27,7 +27,7 @@ public class ParticleEffect //implements Paintable
 
         for (int i = 0; i < 10; i++)
         {
-            Vector velocity = new Vector(random.randomBetween(-5, 5), random.randomBetween(-5, 5));
+            Vector velocity = new Vector(random.intFrom(-5, 5), random.intFrom(-5, 5));
             Particle particle = new Particle(emitter.getX(), emitter.getY(), 0, 0, velocity);
             particles.add(particle);
         }

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal">
@@ -19,12 +20,49 @@
         android:visibility="gone"
         android:orientation="vertical">
 
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+        <LinearLayout
+            android:background="@drawable/pause_menu"
             android:layout_centerInParent="true"
-            android:text="Resume Game"
-            android:onClick="resumeGame"/>
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:orientation="vertical"
+            tools:ignore="UselessParent">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/button_text"
+                android:text="Paused"
+                android:textColor="@color/text_color"
+                android:layout_gravity="center"
+                android:textAlignment="center"/>
+
+            <android.support.v4.widget.Space
+                android:layout_width="1dp"
+                android:layout_height="40dp"/>
+
+            <Button
+                android:layout_gravity="center"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/resume_button_text"
+                android:textAllCaps="true"
+                android:textAlignment="center"
+                android:textSize="@dimen/button_text"
+                android:onClick="resumeGame"
+                android:background="@drawable/pause_menu_button"/>
+            <android.support.v4.widget.Space
+                android:layout_width="1dp"
+                android:layout_height="40dp"/>
+            <Button
+                android:layout_gravity="center"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/quit_button_text"
+                android:textSize="@dimen/button_text"
+                android:textAlignment="center"
+                android:onClick="stopGame"
+                android:background="@drawable/pause_menu_button"/>
+        </LinearLayout>
 
     </RelativeLayout>
 

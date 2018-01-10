@@ -7,8 +7,8 @@ import java.util.LinkedList;
 
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
-import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.EntityCollisions;
+import box.shoe.gameutils.GameEvents;
 import box.shoe.gameutils.GameState;
 import box.shoe.gameutils.TaskScheduler;
 import box.shoe.gameutils.L;
@@ -22,18 +22,28 @@ import box.shoe.gameutils.Rand;
 public class RopeGame extends AbstractGameEngine
 {
     // Consts
+    // Updates per second that we would like to get from the engine.
     private static final int TARGET_UPS = 25; //No need to make ups too high!
 
     // Objs
+    // Player is controlled by the human.
     private Player player;
-    private Entity topBar;
-    private Entity botBar;
+    // Barriers on the top and bottom of the screen with which the player dies upon contact.
+    private Wall topBar;
+    private Wall botBar;
+    // Keep track of the generated Entities.
     private LinkedList<Wall> walls;
     private LinkedList<Coin> coins;
-    private Rand rand;
+    // Use a single Rand instance for RNG.
+    public static Rand random = new Rand();
+    // Spawns the walls and coins at the specified intervals.
     private TaskScheduler scheduler;
-    private ParticleEffect part;
-    private LinkedList<ParticleEffect> effects;
+
+    // Etc.
+    // Make sure we only dispatch the GAME_OVER event once.
+    private boolean dispatchedGameOverEvent = false;
+    // Score indicates how well the use is doing - increases upon collecting coin, and passing wall.
+    private int score = 0;
 
     public RopeGame(Context appContext, AbstractGameSurfaceView screen)
     {
@@ -41,46 +51,44 @@ public class RopeGame extends AbstractGameEngine
         scheduler = new TaskScheduler(RopeGame.TARGET_UPS);
         walls = new LinkedList<>();
         coins = new LinkedList<>();
-        effects = new LinkedList<>();
-        rand = new Rand();
     }
 
     @Override
     protected void initialize()
     {
         int barHeight = 10;
-        topBar = new Entity(0, getGameHeight(), Integer.MAX_VALUE, barHeight); //TODO: need some way to attach to camera - make fixed.
-        botBar = new Entity(0, 0, Integer.MAX_VALUE, barHeight);
+        topBar = new Wall(0, getGameHeight() - barHeight, getGameWidth(), barHeight, false);
+        botBar = new Wall(0, 0, getGameWidth(), barHeight, false);
 
-        player = new Player(0, 7 * getGameHeight() / 8);
+        player = new Player(getGameWidth() / 7, getGameHeight() / 7);
         Runnable generateWallAndCoin = new Runnable()
         {
             @Override
             public void run()
             {
                 int wallHeight = getGameHeight() / 3;
-                int wallWidth = 20;
-                double wallX = player.getX() + getGameWidth();
-                int holePosition = rand.randomBetween(0, 2);
+                int wallWidth = 10;
+                double wallX = getGameWidth();
+                int holePosition = random.intFrom(0, 2);
                 if (holePosition != 0)
                 {
-                    Wall wall = new Wall(wallX, 0, wallWidth, wallHeight);
+                    Wall wall = new Wall(wallX, 0, wallWidth, wallHeight, true);
                     walls.add(wall);
                 }
                 if (holePosition != 1)
                 {
-                    Wall wall = new Wall(wallX, wallHeight, wallWidth, wallHeight);
+                    Wall wall = new Wall(wallX, wallHeight, wallWidth, wallHeight, true);
                     walls.add(wall);
                 }
                 if (holePosition != 2)
                 {
-                    Wall wall = new Wall(wallX, 2 * wallHeight, wallWidth, wallHeight);
+                    Wall wall = new Wall(wallX, 2 * wallHeight, wallWidth, wallHeight, true);
                     walls.add(wall);
                 }
 
-                int rand = random.randomBetween(0, 0);
-                int margin = 40;
-                int randHeight = random.randomBetween(margin, getGameHeight() - margin);
+                int rand = random.intFrom(0, 3);
+                int margin = 80;
+                int randHeight = random.intFrom(margin, getGameHeight() - margin);
                 if (rand == 0)
                 {
                     coins.add((new Coin(wallX + getGameWidth() * .3, randHeight, 80, 80)));
@@ -94,44 +102,58 @@ public class RopeGame extends AbstractGameEngine
     @Override
     protected void update()
     {
+        // Let tasks run....
         scheduler.tick();
 
+        // Check for player going too high or too low.
         if (EntityCollisions.collideRectangle(player, topBar) || EntityCollisions.collideRectangle(player, botBar))
         {
             playerDead();
         }
 
+        // On input, jump!
         if (screenTouched)
         {
             player.velocity = Player.jumpVelocity;
         }
 
-        double oldPlayerX = player.getX();
-        player.update();
-
+        // Keep track if we passed a wall this update, so we can increase the score.
         boolean passingWall = false;
+
+        // Updates and collisions for Walls.
         Iterator<Wall> wallIterator = walls.iterator();
         while (wallIterator.hasNext())
         {
             Wall wall = wallIterator.next();
-            if (oldPlayerX < wall.getX() && player.getX() > wall.getX())
-            {
-                passingWall = true;
-            }
+            double oldWallX = wall.getX();
+
+            // Player hit a wall
             if (EntityCollisions.collideRectangle(player, wall))
             {
                 playerDead();
             }
+
+            // Wall ran off the screen, allow it to be garbage collected.
             if (wall.getX() - wall.registration.getX() + wall.width < 0)
             {
                 wallIterator.remove();
             }
-        }
-        if (passingWall)
-        {
-            score++; //TODO: score should go up a bit later, so you do not gain a point upon dying against a wall
+
+            wall.update();
+
+            // Wall passes by the player.
+            if (oldWallX > player.getX() && wall.getX() < player.getX())
+            {
+                passingWall = true;
+            }
         }
 
+        if (passingWall)
+        {
+            score++;
+        }
+
+        // Updates and collisions for Coins.
         Iterator<Coin> coinIterator = coins.iterator();
         while (coinIterator.hasNext())
         {
@@ -141,13 +163,15 @@ public class RopeGame extends AbstractGameEngine
                 score++;
                 coinIterator.remove();
             }
+            if (coin.getX() - coin.registration.getX() + coin.width < 0)
+            {
+                coinIterator.remove();
+            }
+            coin.update();
         }
 
-        /*
-        for (ParticleEffect effect : effects)
-        {
-            effect.update();
-        }*/
+        // Move the player.
+        player.update();
     }
 
     @Override
@@ -168,35 +192,55 @@ public class RopeGame extends AbstractGameEngine
         //Store the bars for painting.
         gameState.put("top", topBar);
         gameState.put("bot", botBar);
-
-/*
-        // Save the effect.
-        for (ParticleEffect effect : effects)
-        {
-            for (ParticleEffect.Particle particle : effect.particles)
-            {
-                gameState.saveInterpolatableEntity(particle);
-            }
-        }
-        gameState.saveData("effects", effects);*/
     }
 
+    // Kills the player (stops the game).
     private void playerDead()
     {
-        L.d("DEAD", "lifecycleRope");
-        //stopGame();
+        // Make sure we do not dispatch the GAME_OVER event more than once.
+        if (!dispatchedGameOverEvent)
+        {
+            dispatchedGameOverEvent = true;
+
+            // Tell all listeners that the game is over.
+            dispatchEvent(GameEvents.GAME_OVER);
+        }
+    }
+
+    @Override
+    public int getResult()
+    {
+        return score;
     }
 
     @Override
     public void cleanup()
     {
-        // Cleanup the parent first to stop all threads, so we can be sure that the Entities are not used.
         super.cleanup();
+
+        topBar.cleanup();
+        topBar = null;
+        botBar.cleanup();
+        botBar = null;
+
         player.cleanup();
         player = null;
-        rand = null;
-        //Cleanup scheduler TODO
+
+        scheduler.cleanup();
         scheduler = null;
-        //Cleanup walls TODO
+
+        for (Wall wall : walls)
+        {
+            wall.cleanup();
+        }
+        walls.clear();
+        walls = null;
+
+        for (Coin coin : coins)
+        {
+            coin.cleanup();
+        }
+        coins.clear();
+        coins = null;
     }
 }

@@ -4,6 +4,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 
+import box.shoe.gameutils.Cleanable;
 import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.Paintable;
 import box.shoe.gameutils.Vector;
@@ -18,7 +19,7 @@ public class Coin extends Entity implements Paintable
 
     public Coin(double initialX, double initialY, double initialWidth, double initialHeight)
     {
-        super(initialX, initialY, initialWidth, initialHeight);
+        super(initialX, initialY, initialWidth, initialHeight, new Vector(-21, 0));
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     }
 
@@ -28,6 +29,17 @@ public class Coin extends Entity implements Paintable
         paint.setColor(Color.parseColor("#e8c125"));
         canvas.drawCircle((float) (_position.getX() + width / 2), (float) (_position.getY() + width / 2), (float) width / 2, paint);
         paint.setColor(Color.YELLOW);
-        canvas.drawCircle((float) (_position.getX() + width / 2), (float) (_position.getY() + width / 2), (float) width / 3, paint);
+        canvas.drawCircle((float) (_position.getX() + width / 2), (float) (_position.getY() + width / 2), (float) (width / 2.2), paint);
+        paint.setColor(Color.parseColor("#e8c125"));
+        canvas.drawCircle((float) (_position.getX() + width / 2), (float) (_position.getY() + width / 2), (float) (width / 2.4), paint);
+        paint.setColor(Color.YELLOW);
+        canvas.drawCircle((float) (_position.getX() + width / 2), (float) (_position.getY() + width / 2), (float) (width / 2.6), paint);
+    }
+
+    @Override
+    public void cleanup()
+    {
+        super.cleanup();
+        paint = null;
     }
 }

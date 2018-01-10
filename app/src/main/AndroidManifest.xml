@@ -9,9 +9,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true">
         <activity
-            android:screenOrientation="sensorLandscape"
-            android:name=".MainActivity"
-            android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+            android:screenOrientation="userPortrait"
+            android:configChanges="orientation|screenSize"
+            android:name=".GameActivity"
+            android:theme="@style/Theme.NoTitleBar.Fullscreen.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

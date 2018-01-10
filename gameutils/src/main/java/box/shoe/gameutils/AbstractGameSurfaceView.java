@@ -2,6 +2,7 @@ package box.shoe.gameutils;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -13,24 +14,33 @@ import android.view.SurfaceView;
 /**
  * Created by Joseph on 10/23/2017.
  */
-
+//fixme: buffering just for screenshot is taking a lot more thread cpu time!
 public abstract class AbstractGameSurfaceView extends SurfaceView implements SurfaceHolder.Callback, Cleanable, Screen
 {
     private static final boolean DEBUG_SHOW_BOUNDING_BOXES = false; //TODO: allow to be set from public function
     private SurfaceHolder holder;
     private volatile boolean surfaceReady = false;
-    public Paint paint;
     private boolean preparedToVisualize = false;
-    private Canvas canvas;
+
+    // Canvas returned from lockCanvas. Must be passed back to unlockCanvasAndPost.
+    private Canvas surfaceCanvas;
+
+    // We do not draw onto the surfaceCanvas directly.
+    // We first draw to a buffer, which is great because now we can get a screenshot
+    // whenever we want (from the bufferBitmap). And we are able to use an enhanced Canvas subclass.
+    private Canvas bufferCanvas;
+    private Bitmap bufferBitmap;
 
     private boolean hasDimensions = false;
-    private Runnable surfaceChangedListener;
+    private Runnable readyForPaintingListener;
 
-    public AbstractGameSurfaceView(Context context, Runnable surfaceChangedListener)
+    public AbstractGameSurfaceView(Context context, Runnable readyForPaintingListener)
     {
         super(context);
-        this.surfaceChangedListener = surfaceChangedListener;
-        paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        setWillNotCacheDrawing(true);
+        setDrawingCacheEnabled(true);
+        setWillNotDraw(true);
+        this.readyForPaintingListener = readyForPaintingListener;
         holder = getHolder();
         holder.addCallback(this);
     }
@@ -41,70 +51,90 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
     }
 */
 
-    public void prepareVisualize()
+    @Override
+    public void preparePaint()
     {
         if (!surfaceReady)
         {
             throw new IllegalStateException("Surface is not ready to paint. Please call canVisualize() to check.");
         }
-        canvas = holder.lockCanvas();
+        surfaceCanvas = holder.lockCanvas();
 
         // Set coordinate origin to (0, 0) and make +x = right, +y = up.
-        canvas.translate(0, canvas.getHeight());
-        canvas.scale(1, -1);
+        /*surfaceCanvas.translate(0, bufferCanvas.getHeight());
+        surfaceCanvas.scale(1, -1);*/
 
         preparedToVisualize = true;
     }
 
-    public void visualize(@NonNull GameState gameState)
+    private void checkState()
     {
-        if (!preparedToVisualize())
+        if (!hasPreparedPaint())
         {
-            throw new IllegalStateException("Not prepared to visualize. Please call prepareVisualize() before calling visualize each time.");
+            throw new IllegalStateException("Not prepared to paintFrame. Please call preparePaint() before calling paintFrame each time.");
         }
         if (!surfaceReady)
         {
             throw new IllegalStateException("Surface is not ready to paint. Please call canVisualize() to check.");
-        }/*
+        }
+    }
+
+    private void postCanvas()
+    {
+        surfaceCanvas.drawBitmap(bufferBitmap, 0, 0, null);
+        preparedToVisualize = false;
+        holder.unlockCanvasAndPost(surfaceCanvas);
+    }
+
+    @Override
+    public void paintFrame(@NonNull GameState gameState)
+    {
+        checkState();
+        /*
         if (abstractData == null)
         {
             throw new IllegalStateException("Data has not been giving for painting. Please call giveDataReference(AbstractGameEngine) to supply it.");
         }*/
         // Clear the canvas
-        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+        bufferCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
 
-        paint(canvas, gameState);
+        paint(bufferCanvas, gameState);
         // Create debug artifacts, which follow the actual in-game positions, and box each Entity.
         if (AbstractGameSurfaceView.DEBUG_SHOW_BOUNDING_BOXES)
         {
             // We will draw all Entities, not just Paintables.
             for (Entity entity : gameState.interps.keySet())
             {
-                canvas.drawRect((float) entity.position.getX(), (float) entity.position.getY(), (float) (entity.position.getX() + entity.width), (float) (entity.position.getY() + entity.height), new Paint(Paint.ANTI_ALIAS_FLAG));
+                bufferCanvas.drawRect((float) entity.position.getX(), (float) entity.position.getY(), (float) (entity.position.getX() + entity.width), (float) (entity.position.getY() + entity.height), new Paint(Paint.ANTI_ALIAS_FLAG));
             }
         }
 
-        preparedToVisualize = false;
-        holder.unlockCanvasAndPost(canvas);
+        postCanvas();
     }
 
-    public void unlockCanvasAndClear()
+    @Override
+    public void paintBitmap(@NonNull Bitmap bitmap)
     {
-        L.d("unlock canvas and clear called", "clear");
-        if (!preparedToVisualize())
-        {
-            throw new IllegalStateException("Not prepared to visualize. Please call prepareVisualize() before calling visualize each time.");
-        }
-        if (!surfaceReady)
-        {
-            throw new IllegalStateException("Surface is not ready to paint. Please call canVisualize() to check.");
-        }
-        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
-        preparedToVisualize = false;
-        holder.unlockCanvasAndPost(canvas);
+        checkState();
+        L.d("drawing bitmap", "screenshot");
+        // Clear the canvas
+        bufferCanvas.drawColor(Color.BLUE);
+
+        // Draw the bitmap
+        bufferCanvas.drawBitmap(bitmap, 0, 0,null);
+
+        postCanvas();
     }
 
-    //protected abstract void paint(Canvas canvas, AbstractGameEngine abstractData, double interpolationRatio);
+    @Override
+    public void unpreparePaint()
+    {
+        checkState();
+        bufferCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+
+        postCanvas();
+    }
+
     protected abstract void paint(Canvas canvas, GameState interpolatedState);
 
     @Override
@@ -118,17 +148,24 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
     {
         if (width > 0 && height > 0)
         {
-            hasDimensions = true;
-            if (surfaceChangedListener != null)
+            if (bufferBitmap != null)
             {
-                surfaceChangedListener.run();
+                bufferBitmap.recycle();
+            }
+            bufferBitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_8888);
+            bufferCanvas = new Canvas(bufferBitmap);
+
+            hasDimensions = true;
+            if (readyForPaintingListener != null)
+            {
+                readyForPaintingListener.run();
             }
         }
     }
 
-    public void unregisterSurfaceChangedListener() //Irreversable
+    public void unregisterReadyForPaintingListener() //Irreversable
     {
-        surfaceChangedListener = null;
+        readyForPaintingListener = null;
     }
 
     @Override
@@ -137,19 +174,31 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         surfaceReady = false;
     }
 
-    public boolean canVisualize()
+    @Override
+    public boolean hasInitialized()
     {
         return surfaceReady && hasDimensions;
     }
 
-    public boolean preparedToVisualize()
+    @Override
+    public boolean hasPreparedPaint()
     {
         return preparedToVisualize;
+    }
+
+    public Bitmap getScreenshot()
+    {
+        return Bitmap.createBitmap(bufferBitmap);
     }
 
     @SuppressLint("MissingSuperCall")
     public void cleanup()
     {
-        paint = null;
+        if (bufferBitmap != null)
+        {
+            bufferBitmap.recycle();
+            bufferBitmap = null;
+        }
+        holder = null;
     }
 }

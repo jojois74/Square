@@ -1,9 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
 
     <style name="Theme.NoTitleBar.Fullscreen.Splash" parent="@android:style/Theme.NoTitleBar.Fullscreen">
         <item name="android:windowIsTranslucent">false</item>
         <item name="android:windowDisablePreview">false</item>
+        <item name="android:windowTranslucentNavigation">true</item>
         <item name="android:colorBackground">#ffffff</item>
     </style>
-
 </resources>

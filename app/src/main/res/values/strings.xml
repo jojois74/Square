@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Square</string>
+    <string name="resume_button_text">Continue</string>
+    <string name="quit_button_text">Exit</string>
 </resources>
