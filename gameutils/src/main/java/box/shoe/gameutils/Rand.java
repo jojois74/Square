@@ -9,6 +9,11 @@ public class Rand extends Random
         super();
     }
 
+    public Rand(long seed)
+    {
+        super(seed);
+    }
+
     public int intFrom(int min, int max)
     {
         return nextInt(max + 1 - min) + min;

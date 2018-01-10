@@ -8,10 +8,11 @@ import java.util.LinkedList;
 /**
  * Created by Joseph on 12/9/2017.
  * A game object which holds a position and space on the screen and can move around.
- * Technically: a Game object with x and y coordinates, which can be fractional, width and height, which can be fractional (or 0 to indicate no space taken up) and Vector objects for velocity and acceleration.
+ * Technically: a Game object with x and y coordinates, which can be fractional, width and height,
+ * which can be fractional (or 0 to indicate no space taken up)
+ * and Vector objectsfor velocity and acceleration.
  * Width and height are different from display-width and display-height.
  */
-//TODO: entities should be recyclable so as to not have to keep on allocating data. Perhaps use this as an excuse for a builder function, and no more need for GameStates!
 public class Entity implements Cleanable //TODO: position should also be vector in constructors?
 { //TODO: extend AbstractEventDispatcher?
     /*pack*/ static final LinkedList<Entity> ENTITIES = new LinkedList<>();
@@ -32,9 +33,9 @@ public class Entity implements Cleanable //TODO: position should also be vector 
     // Relatively from the position, where to find the point of origin from which all positioning of this object is calculated.
     public Vector registration; //TODO: make final somehow
 
-    public double _width;
-    public double _height;
-    public Vector _position;
+    protected double _width;
+    protected double _height;
+    protected Vector _position;
 
     /**
      * Creates an Entity with the specified x and y coordinates,

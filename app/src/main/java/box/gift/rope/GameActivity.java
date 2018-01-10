@@ -2,6 +2,7 @@ package box.gift.rope;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.os.Bundle;
@@ -18,6 +19,7 @@ import box.shoe.gameutils.AbstractGameSurfaceView;
 public class GameActivity extends Activity //TODO: destructive callbacks can do work before calling super, do not unpause when game unpauses, look at lunar landing ex
 { //TODO: theme up splash screen
     private Context appContext;
+    private SharedPreferences sharedPreferences;
     private AbstractGameEngine gameEngine;
     private AbstractGameSurfaceView gameScreen; //TODO: change var type to Screen once interface is robust enough
     private Bitmap screenshot;
@@ -27,6 +29,8 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
 
     private ViewGroup gameFrame;
     private View pauseMenu;
+
+    private boolean wasJustCreated = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,20 +92,14 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
             }
         };
 
-        showMainMenuLayout(0, 0);//TODO:fix scores
-/*
-        L.LOG = true;
-        L.disableChannel("thread");
-        L.disableChannel("stop");
-        L.disableChannel("new");
-*/
-        //SharedPreferences pref = getPreferences(Context.MODE_PRIVATE);
-       // setupMenu(-1, pref.getInt("best", 0));
+        sharedPreferences = getPreferences(Context.MODE_PRIVATE);
+
+        showMainMenuLayout(0, sharedPreferences.getInt(getString(R.string.pref_best), 0));
+        wasJustCreated = true;
     }
 
     private void showMainMenuLayout(int score, int best) //TODO: score and best are a certain type of game, this should be an override in app mod, or even better, provided as a type of activity option
     {
-        L.d("showMM: before set content view", "gameOver");
         setContentView(R.layout.menu_layout);
 
         TextView scoreView = findViewById(R.id.score);
@@ -109,8 +107,6 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
 
         scoreView.setText(String.valueOf(score));
         bestView.setText(String.valueOf(best));
-
-        L.d("showMM: after set content view", "gameOver");
     }
 
     private void showGameLayout()
@@ -134,6 +130,29 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
     }
 
     @Override
+    protected void onStart()
+    {
+        L.d("START", "lifecycle");
+        super.onStart();
+
+        // Determine if the game is stopped or just paused.
+        if (gameEngine == null || !gameEngine.isActive())
+        {
+            if (!wasJustCreated)
+            {
+                showMainMenuLayout(sharedPreferences.getInt(getString(R.string.pref_last_score), 0), sharedPreferences.getInt(getString(R.string.pref_best), 0));
+            }
+        }
+        else
+        {
+            // Show the pause menu
+            showPauseMenu();
+        }
+
+        wasJustCreated = false;
+    }
+
+    @Override
     protected void onPause()
     {
         L.d("PAUSE", "lifecycle");
@@ -150,42 +169,34 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
     @Override
     public void onBackPressed()
     {
-        L.d("back pressed : beginning", "gameOver");
         if (pauseGameIfPlaying())
         {
-            L.d("back pressed : choice 1", "gameOver");
             // On a game pause, since we have not left the activity, show the pause menu.
             showPauseMenu();
         }
         else if (gameEngine != null && gameEngine.isActive() && !gameEngine.isPlaying())
         {
-            L.d("back pressed : choice 2", "gameOver");
             // If the game is paused, return to the game, as if the resume game button was pressed.
             resumeGame(null);
         }
         else
         {
-            L.d("back pressed : choice 3", "gameOver");
             // If the game was not active, simply let the OS do whatever it wants.
             super.onBackPressed();
         }
-        L.d("back pressed : end", "gameOver");
     }
 
     // Returns whether or not the game was running (and thus was paused)
     private boolean pauseGameIfPlaying()
     {
-        L.d("pause game if playing called", "gameOver");
         if (gameScreen != null)
         {
             if (gameEngine.isPlaying())
             {
-                L.d("pause game if playing has determined that the game needs to be paused.", "gameOver");
                 gameEngine.pauseGame();
                 return true;
             }
         }
-        L.d("pause game if playing end", "gameOver");
         return false;
     }
 
@@ -197,7 +208,6 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
         // save screenshot of the screen to paint when we resume.
         if (gameScreen != null && gameEngine != null && gameEngine.isActive())
         {
-            L.d("Saving screenshot", "screenshot");
             if (screenshot != null && !screenshot.isRecycled())
             {
                 screenshot.recycle();
@@ -240,28 +250,8 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
         super.onDestroy();
     }
 
-    @Override
-    protected void onResume()
-    {
-        L.d("RESUME", "lifecycle");
-        super.onResume();
-
-        // Determine if the game is stopped or just paused.
-        if (gameEngine == null || !gameEngine.isActive())
-        {
-            L.d("onResume, decided to show main menu because gameEngine isn't active, (or doesn't exist).", "gameOver");
-            showMainMenuLayout(0, 0);//TODO:fix scores
-        }
-        else
-        {
-            // Show the pause menu
-            showPauseMenu();
-        }
-    }
-
     public void startGame(View view)
     {
-        L.d("start game", "gameOver");
         showGameLayout();
         createGame();
         showGame();
@@ -269,14 +259,12 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
 
     public void resumeGame(View view)
     {
-        L.d("resume game", "gameOver");
         hidePauseMenu();
         gameEngine.resumeGame();
     }
 
     public void stopGame(View view)
     {
-        L.d("begin stop game, view=" + view, "gameOver");
         if (gameEngine.isActive())
         {
             gameEngine.stopGame();
@@ -287,6 +275,7 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
         }
 
         int score = gameEngine.getResult();
+        int best = sharedPreferences.getInt(getString(R.string.pref_best), 0);
 
         gameEngine = null;
         gameScreen = null;
@@ -294,12 +283,20 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
         // If we came from the pause menu, hide it.
         if (view != null)
         {
-            L.d("will hide pause menu", "gameOver");
             hidePauseMenu();
         }
-        showMainMenuLayout(score, 0); //TODO:fix scores
 
-        L.d("end of stop game with view=" + view, "gameOver");
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        // Save last score.
+        editor.putInt(getString(R.string.pref_last_score), score);
+        // If new high score, update best.
+        if (score > best)
+        {
+            editor.putInt(getString(R.string.pref_best), score);
+        }
+        editor.apply();
+
+        showMainMenuLayout(score, sharedPreferences.getInt(getString(R.string.pref_best), 0));
     }
 
     // Should work even if pause menu is already showing.
@@ -312,78 +309,5 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
     private void hidePauseMenu()
     {
         pauseMenu.setVisibility(View.GONE);
-    }
-
-/*
-    private void setupMenu(int s, int b)
-    {
-        setContentView(R.layout.menu_layout);
-        View scoreWrapView = findViewById(R.id.scoreWrap);
-        TextView scoreView = (TextView) findViewById(R.id.score);
-        if (s > -1)
-        {
-            scoreView.setText(String.valueOf(s));
-            scoreWrapView.setVisibility(View.VISIBLE);
-        }
-        else
-        {
-            scoreWrapView.setVisibility(View.INVISIBLE);
-        }
-
-        TextView bestView = (TextView) findViewById(R.id.best);
-        bestView.setText(String.valueOf(b));
-
-        (findViewById(R.id.menu_root)).setOnTouchListener(new View.OnTouchListener()
-        {
-            @Override
-            public boolean onTouch(View v, MotionEvent event)
-            {
-                int action = event.getActionMasked();
-                if (action == MotionEvent.ACTION_DOWN)
-                {
-                    setContentView(R.layout.game_layout);
-                    gameFrame = ((ViewGroup) findViewById(R.id.gameFrame));
-                    gameFrame.removeAllViews();
-                    gameScreen = new RopeScreen(appContext);
-                    L.d("Creating new rope game", "trace");
-                    game = new RopeGame(appContext, gameScreen);
-                    game.addEventListener(GameEvents.GAME_OVER, new Runnable()
-                    {
-                        @Override
-                        public void run()
-                        {
-                            int score = game.score;
-                            SharedPreferences pref = getPreferences(Context.MODE_PRIVATE);
-                            int currentBest = pref.getInt("best", 0);
-                            if (score > currentBest)
-                            {
-                                SharedPreferences.Editor edit = pref.edit();
-                                edit.putInt("best", score);
-                                edit.commit();
-                            }
-                            game = null;
-                            setupMenu(score, pref.getInt("best", 0));
-                        }
-                    });
-                    gameFrame.addView(gameScreen);
-                    game.startGame();
-                }
-                return true;
-            }
-        });
-    }
-    */
-
-    @Override
-    protected void onSaveInstanceState(Bundle savedInstanceState)
-    {//TODO: save last score
-        L.d("SAVE INSTANCE STATE", "lifecycle");
-        super.onSaveInstanceState(savedInstanceState);
-    }
-
-    protected void onRestoreInstanceState(Bundle savedInstanceState)
-    {//TODO: restore last score
-        L.d("RESTORE INSTANCE STATE", "lifecycle");
-        super.onRestoreInstanceState(savedInstanceState);
     }
 }

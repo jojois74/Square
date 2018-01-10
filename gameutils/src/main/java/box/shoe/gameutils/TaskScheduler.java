@@ -12,27 +12,53 @@ import java.util.Set;
 
 public class TaskScheduler implements Cleanable
 {
-    private double UPMS; // Updates per millisecond
+    // Updates per millisecond of the engine that calls tick().
+    // Used to calculate approx how many ticks for a given time.
+    private final double UPMS;
+
+    // The scheduled tasks.
     private Set<Task> tasks;
 
+    // Temporary buffer of tasks that are to be scheduled.
+    // We do not always schedule tasks right away, in case we are currently using the tasks,
+    // So we avoid a Concurrent modification Exception by waiting until the appropriate time.
+    // Contract: tasks are scheduled before they are due to be fired.
+    private Set<Task> tasksBuffer;
+
+    /**
+     * Create a TaskScheduler.
+     * @param UPS the updates per second o the game engine that will call tick().
+     */
     public TaskScheduler(int UPS)
     {
         this.UPMS = UPS / 1000.0;
         tasks = new HashSet<>();
+        tasksBuffer = new HashSet<>();
     }
 
     public void schedule(int ms, int repetitions, Runnable schedulable) //0 for repetitions means eternal, ms accurate to within about 10ms if tick() is called on an AbstractGameEngine update
     {
-        tasks.add(new Task((int) Math.round(UPMS * ms), repetitions, schedulable));
+        // We add new tasks to a buffer, because we won't schedule them for real until
+        // we know it is safe to do so (the scheduled tasks are not being accessed some other way).
+        // If we scheduled them to the real list now, then, e.g., if the firing and removal of
+        // one task scheduled another while the tasks were still ticking, a CoMoEx would be thrown.
+        tasksBuffer.add(new Task((int) Math.round(UPMS * ms), repetitions, schedulable));
     }
 
-    public void cancelAll()
+    public synchronized void cancelAll()
     {
         tasks.clear();
+        tasksBuffer.clear();
     }
 
-    public void tick()
+    public synchronized void tick()
     {
+        // Now we can safely schedule the tasks from the buffer.
+        tasks.addAll(tasksBuffer);
+        tasksBuffer.clear();
+
+        // Iterate over all of the tasks and tock them. Then remove the ones which have
+        // exhausted their number of firings.
         Iterator<Task> iterator = tasks.iterator();
         while (iterator.hasNext())
         {
@@ -56,6 +82,7 @@ public class TaskScheduler implements Cleanable
         tasks = null;
     }
 
+    //TODO: hash code?
     private class Task implements Cleanable
     {
         private int maxFrames;

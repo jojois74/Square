@@ -4,10 +4,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 
-import box.shoe.gameutils.Cleanable;
 import box.shoe.gameutils.Entity;
-import box.shoe.gameutils.InterpolateSource;
-import box.shoe.gameutils.InterpolateTarget;
 import box.shoe.gameutils.Paintable;
 import box.shoe.gameutils.Vector;
 

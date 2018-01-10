@@ -13,8 +13,14 @@ import java.util.Map;
 
 public class GameState implements Cleanable
 {
+    // The time at which the update which generated this GameState occurred.
     private long timeStamp;
+
+    // All data necessary for painting of this GameState.
     private Map<String, Object> data;
+
+    // Storage of all Entities along with their provided Interpolatables.
+    // Used to interpolate values for the Entities at this GameState.
     /*pack*/ IdentityHashMap<Entity, InterpolatablesCarrier> interps;
 
     /*pack*/ GameState()

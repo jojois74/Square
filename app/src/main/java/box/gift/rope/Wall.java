@@ -28,7 +28,7 @@ public class Wall extends Entity implements Paintable
     @Override
     public void paint(Canvas canvas)
     {
-        paint.setColor(Color.parseColor("#60cde5"));
+        paint.setColor(Color.WHITE);
         if (horiz)
         {
             for (int i = 0; i < Math.round(_height); i++)

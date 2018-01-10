@@ -11,8 +11,6 @@ import box.shoe.gameutils.EntityCollisions;
 import box.shoe.gameutils.GameEvents;
 import box.shoe.gameutils.GameState;
 import box.shoe.gameutils.TaskScheduler;
-import box.shoe.gameutils.L;
-import box.shoe.gameutils.ParticleEffect;
 import box.shoe.gameutils.Rand;
 
 /**
@@ -61,7 +59,7 @@ public class RopeGame extends AbstractGameEngine
         botBar = new Wall(0, 0, getGameWidth(), barHeight, false);
 
         player = new Player(getGameWidth() / 7, getGameHeight() / 7);
-        Runnable generateWallAndCoin = new Runnable()
+        Runnable spawnWall = new Runnable()
         {
             @Override
             public void run()
@@ -85,18 +83,35 @@ public class RopeGame extends AbstractGameEngine
                     Wall wall = new Wall(wallX, 2 * wallHeight, wallWidth, wallHeight, true);
                     walls.add(wall);
                 }
-
+            }
+        };
+        final Runnable spawnCoin = new Runnable()
+        {
+            @Override
+            public void run()
+            {
                 int rand = random.intFrom(0, 3);
                 int margin = 80;
                 int randHeight = random.intFrom(margin, getGameHeight() - margin);
                 if (rand == 0)
                 {
-                    coins.add((new Coin(wallX + getGameWidth() * .3, randHeight, 80, 80)));
+                    coins.add((new Coin(getGameWidth(), randHeight, 80, 80)));
                 }
             }
         };
-        scheduler.schedule(2700, 0, generateWallAndCoin);
-        generateWallAndCoin.run();
+        final int wallDelay = 2700;
+        Runnable beginSpawnCoins = new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                scheduler.schedule(wallDelay, 0, spawnCoin);
+                spawnCoin.run();
+            }
+        };
+        scheduler.schedule(wallDelay, 0, spawnWall);
+        scheduler.schedule(wallDelay / 2, 1, beginSpawnCoins);
+        spawnWall.run();
     }
 
     @Override
@@ -106,7 +121,7 @@ public class RopeGame extends AbstractGameEngine
         scheduler.tick();
 
         // Check for player going too high or too low.
-        if (EntityCollisions.collideRectangle(player, topBar) || EntityCollisions.collideRectangle(player, botBar))
+        if (EntityCollisions.entityEntity(player, topBar) || EntityCollisions.entityEntity(player, botBar))
         {
             playerDead();
         }
@@ -128,7 +143,7 @@ public class RopeGame extends AbstractGameEngine
             double oldWallX = wall.getX();
 
             // Player hit a wall
-            if (EntityCollisions.collideRectangle(player, wall))
+            if (EntityCollisions.entityEntity(player, wall))
             {
                 playerDead();
             }
@@ -158,7 +173,7 @@ public class RopeGame extends AbstractGameEngine
         while (coinIterator.hasNext())
         {
             Coin coin = coinIterator.next();
-            if (EntityCollisions.collideRectangle(player, coin)) //TODO: use circle collision for coins?
+            if (EntityCollisions.entityEntity(player, coin)) //TODO: use circle collision for coins?
             {
                 score++;
                 coinIterator.remove();

@@ -86,9 +86,9 @@ public class InterpolatablesCarrier implements Cleanable
         return toReturn;
     }
 
-    public boolean isEmpty()
+    /*pack*/ boolean isEmpty()
     {
-        // For some reason this checks for size() == 0. (according to docs)
+        // For some reason this checks for size() == 0 (according to docs).
         // That is O(n), while isEmpty should be an O(1) check.
         // Remedy: scream at top of lungs!
         return interps.isEmpty();

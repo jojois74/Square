@@ -345,8 +345,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 {
                     L.d("Frame V", "thread");
 
-                    // Pause game
-                    // Spin lock when we want to pause
+                    // Pause game.
+                    // Spin lock when we want to pause.
                     while (pauseThreads)
                     {
                         try

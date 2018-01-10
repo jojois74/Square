@@ -6,16 +6,19 @@ import org.jetbrains.annotations.Contract;
 
 /**
  * Created by Joseph on 10/21/2017.
- * Represents a vector in the mathematical sense.
  * A magnitude and a direction, described by x and y length values.
  * This class is IMMUTABLE.
  */
 
 public final class Vector implements Interpolatable<Vector>
 {
+    // Length in the +x (rightward) direction.
     private final double x;
+    // Length in the +y (downward) direction.
     private final double y;
 
+    // Consts.
+    // The zero vector.
     public static final Vector ZERO = new Vector(0, 0);
 
     /**
@@ -108,7 +111,7 @@ public final class Vector implements Interpolatable<Vector>
     }
 
     /**
-     * Creates a new Vector with only the x value of this one, and y set to 0.
+     * Creates a new Vector with only the x length of this one, and y set to 0.
      * @return the horizontal Vector.
      */
     @NonNull
@@ -118,7 +121,7 @@ public final class Vector implements Interpolatable<Vector>
     }
 
     /**
-     * Creates a new Vector with only the y value of this one, and x set to 0.
+     * Creates a new Vector with only the y length of this one, and x set to 0.
      * @return the vertical Vector.
      */
     @NonNull
@@ -148,12 +151,20 @@ public final class Vector implements Interpolatable<Vector>
         return this.rotateBy(Math.PI / 2);
     }
 
+    /**
+     * Get the x length of this Vector.
+     * @return the x length.
+     */
     @Contract(pure = true)
     public double getX()
     {
         return x;
     }
 
+    /**
+     * Get the y length of this Vector.
+     * @return the y length.
+     */
     @Contract(pure = true)
     public double getY()
     {
@@ -173,7 +184,6 @@ public final class Vector implements Interpolatable<Vector>
     {
         // We are immutable so no need to copy....
         return this;
-        //return new Vector(getX(), getY());
     }
 
     @NonNull

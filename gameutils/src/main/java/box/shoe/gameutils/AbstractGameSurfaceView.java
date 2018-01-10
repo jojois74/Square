@@ -116,7 +116,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
     public void paintBitmap(@NonNull Bitmap bitmap)
     {
         checkState();
-        L.d("drawing bitmap", "screenshot");
+
         // Clear the canvas
         bufferCanvas.drawColor(Color.BLUE);
 

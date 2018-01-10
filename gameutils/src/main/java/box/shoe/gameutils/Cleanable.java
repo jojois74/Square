@@ -6,7 +6,7 @@ import android.support.annotation.CallSuper;
  * Created by Joseph on 12/7/2017.
  * Indicates a class that can be cleaned up.
  */
-
+//TODO: remove this interface, perhaps
 public interface Cleanable
 {
     /**

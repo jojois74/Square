@@ -3,7 +3,9 @@ package box.gift.rope;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.Shader;
 
 import java.util.LinkedList;
 
@@ -41,10 +43,7 @@ public class RopeScreen extends AbstractGameSurfaceView
     }
 
     @Override
-    public void initialize()
-    {
-
-    }
+    public void initialize() {}
 
     @Override
     public boolean isVisible(Paintable paintable)
@@ -64,7 +63,7 @@ public class RopeScreen extends AbstractGameSurfaceView
         Player player = gameState.get("player");
 
         // Background
-        canvas.drawColor(Color.BLACK);
+        canvas.drawColor(Color.parseColor("#aaaaff"));
 
         // Player
         player.paint(canvas);
@@ -91,7 +90,7 @@ public class RopeScreen extends AbstractGameSurfaceView
 
         // Score
         paint.setTextSize(50);
-        paint.setColor(Color.BLUE);
+        paint.setColor(Color.WHITE);
         canvas.drawText("Score: " + String.valueOf(gameState.get("score")), 40, 90, paint);
     }
 
