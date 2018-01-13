@@ -68,18 +68,18 @@ public class RopeScreen extends AbstractGameSurfaceView
         // Player
         player.paint(canvas);
 
-        // Top and Bottom
-        Paintable topBar = gameState.get("top");
-        Paintable botBar = gameState.get("bot");
-        topBar.paint(canvas);
-        botBar.paint(canvas);
-
         // Walls
         LinkedList<Paintable> walls = gameState.get("walls");
         for (Paintable wall : walls)
         {
             wall.paint(canvas);
         }
+
+        // Top and Bottom
+        Paintable topBar = gameState.get("top");
+        Paintable botBar = gameState.get("bot");
+        topBar.paint(canvas);
+        botBar.paint(canvas);
 
         // Coins
         LinkedList<Paintable> coins = gameState.get("coins");
@@ -91,7 +91,7 @@ public class RopeScreen extends AbstractGameSurfaceView
         // Score
         paint.setTextSize(50);
         paint.setColor(Color.WHITE);
-        canvas.drawText("Score: " + String.valueOf(gameState.get("score")), 40, 90, paint);
+        canvas.drawText(String.valueOf(gameState.get("score")), 60, 96, paint);
     }
 
     @Override

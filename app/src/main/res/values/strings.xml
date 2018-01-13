@@ -1,7 +1,8 @@
 <resources>
     <string name="app_name">Square</string>
     <string name="resume_button_text">Continue</string>
-    <string name="quit_button_text">Exit</string>
+    <string name="quit_button_text">Quit</string>
+    <string name="start_prompt">\ntap to start!</string>
     <string name="pref_best">PREF_BEST</string>
     <string name="pref_last_score">PREF_LAST_SCORE</string>
 </resources>

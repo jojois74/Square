@@ -27,8 +27,8 @@ public class RopeGame extends AbstractGameEngine
     // Player is controlled by the human.
     private Player player;
     // Barriers on the top and bottom of the screen with which the player dies upon contact.
-    private Wall topBar;
     private Wall botBar;
+    private Wall topBar;
     // Keep track of the generated Entities.
     private LinkedList<Wall> walls;
     private LinkedList<Coin> coins;
@@ -54,18 +54,18 @@ public class RopeGame extends AbstractGameEngine
     @Override
     protected void initialize()
     {
-        int barHeight = 10;
-        topBar = new Wall(0, getGameHeight() - barHeight, getGameWidth(), barHeight, false);
-        botBar = new Wall(0, 0, getGameWidth(), barHeight, false);
+        int barHeight = 15;
+        botBar = new Wall(0, getGameHeight() - barHeight, getGameWidth(), barHeight, false);
+        topBar = new Wall(0, 0, getGameWidth(), barHeight, false);
 
-        player = new Player(getGameWidth() / 7, getGameHeight() / 7);
+        player = new Player(getGameWidth() / 6, getGameHeight() / 7);
         Runnable spawnWall = new Runnable()
         {
             @Override
             public void run()
             {
                 int wallHeight = getGameHeight() / 3;
-                int wallWidth = 10;
+                int wallWidth = 15;
                 double wallX = getGameWidth();
                 int holePosition = random.intFrom(0, 2);
                 if (holePosition != 0)
@@ -95,7 +95,7 @@ public class RopeGame extends AbstractGameEngine
                 int randHeight = random.intFrom(margin, getGameHeight() - margin);
                 if (rand == 0)
                 {
-                    coins.add((new Coin(getGameWidth(), randHeight, 80, 80)));
+                    coins.add((new Coin(getGameWidth(), randHeight)));
                 }
             }
         };
@@ -121,7 +121,7 @@ public class RopeGame extends AbstractGameEngine
         scheduler.tick();
 
         // Check for player going too high or too low.
-        if (EntityCollisions.entityEntity(player, topBar) || EntityCollisions.entityEntity(player, botBar))
+        if (EntityCollisions.entityEntity(player, botBar) || EntityCollisions.entityEntity(player, topBar))
         {
             playerDead();
         }
@@ -205,8 +205,8 @@ public class RopeGame extends AbstractGameEngine
         gameState.put("score", score);
 
         //Store the bars for painting.
-        gameState.put("top", topBar);
-        gameState.put("bot", botBar);
+        gameState.put("top", botBar);
+        gameState.put("bot", topBar);
     }
 
     // Kills the player (stops the game).
@@ -233,10 +233,10 @@ public class RopeGame extends AbstractGameEngine
     {
         super.cleanup();
 
-        topBar.cleanup();
-        topBar = null;
         botBar.cleanup();
         botBar = null;
+        topBar.cleanup();
+        topBar = null;
 
         player.cleanup();
         player = null;

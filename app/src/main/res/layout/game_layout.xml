@@ -14,54 +14,67 @@
     </LinearLayout>
 
     <RelativeLayout
+        android:id="@id/pauseMenu"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:id="@id/pauseMenu"
-        android:visibility="gone"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:visibility="gone">
 
         <LinearLayout
-            android:background="@drawable/pause_menu"
-            android:layout_centerInParent="true"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:orientation="vertical"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:background="@drawable/pause_menu"
+            android:orientation="vertical"
             tools:ignore="UselessParent">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="@dimen/button_text"
+                android:layout_gravity="center"
+                android:background="#bbbbff"
                 android:text="Paused"
+                android:textAlignment="center"
                 android:textColor="@color/text_color"
-                android:layout_gravity="center"
-                android:textAlignment="center"/>
+                android:textSize="@dimen/button_text"/>
 
             <android.support.v4.widget.Space
                 android:layout_width="1dp"
-                android:layout_height="40dp"/>
+                android:layout_height="25dp"
+                android:background="#bbbbff"/>
 
-            <Button
-                android:layout_gravity="center"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/resume_button_text"
-                android:textAllCaps="true"
-                android:textAlignment="center"
-                android:textSize="@dimen/button_text"
-                android:onClick="resumeGame"
-                android:background="@drawable/pause_menu_button"/>
-            <android.support.v4.widget.Space
-                android:layout_width="1dp"
-                android:layout_height="40dp"/>
-            <Button
-                android:layout_gravity="center"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/quit_button_text"
-                android:textSize="@dimen/button_text"
-                android:textAlignment="center"
-                android:onClick="stopGame"
-                android:background="@drawable/pause_menu_button"/>
+                android:background="#bbbbff"
+                android:orientation="horizontal">
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:background="@drawable/pause_menu_button"
+                    android:onClick="resumeGame"
+                    android:text="@string/resume_button_text"
+                    android:textAlignment="center"
+                    android:textColor="@color/text_color"
+                    android:textSize="@dimen/button_text"/>
+
+                <android.support.v4.widget.Space
+                    android:layout_width="18dp"
+                    android:layout_height="1dp"/>
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:background="@drawable/pause_menu_button"
+                    android:onClick="stopGame"
+                    android:text="@string/quit_button_text"
+                    android:textAlignment="center"
+                    android:textColor="@color/text_color"
+                    android:textSize="@dimen/button_text"/>
+            </LinearLayout>
         </LinearLayout>
 
     </RelativeLayout>

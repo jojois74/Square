@@ -80,7 +80,6 @@ public class InterpolationProcessor extends AbstractProcessor
         {
             // If this is not the first modules processed, load up the old source file and continue writing.
             ArrayList read = readSource();
-            System.out.println("READ: " + read);
             if (read != null)
             {
                 sourceFile = (SourceForger) read.get(0);
@@ -120,7 +119,6 @@ public class InterpolationProcessor extends AbstractProcessor
 
         for (Element element : sourcesOfInterpolation)
         {
-            System.out.println("Element: " + element);
 
             boolean isInterpolatable = false;
             TypeElement clas = elementUtilities.getTypeElement(element.asType().toString());
@@ -223,7 +221,6 @@ public class InterpolationProcessor extends AbstractProcessor
                             {
                                 throw new IllegalStateException("No interpolation source found for target: " + element.getAnnotation(interpolationTargetAnnotation).id());
                             }
-                            System.out.println("Found matching id");
                             createRecallMethod(enclosingClass);
                             String cast = " (double) ";
                             if (!isDouble)
@@ -436,7 +433,6 @@ public class InterpolationProcessor extends AbstractProcessor
             }
             PrintWriter writer = new PrintWriter(module + "/build/generated/source/apt/debug/box/gift/interpolation/generated/Interpolator.java", "UTF-8");
             writer.write(sourceFile.toString());
-            System.out.println("WROTE source file");
             writer.flush();
             writer.close();
         }
@@ -511,7 +507,6 @@ public class InterpolationProcessor extends AbstractProcessor
             fout1 = new FileInputStream("interpolation/build/generated/source/apt/debug/box/gift/interpolation/generated/tempSource.txt");
         } catch (FileNotFoundException e)
         {
-            System.out.println("File not found.");
             return null;
         }
         ObjectInputStream oos1 = new ObjectInputStream(fout1);

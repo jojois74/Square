@@ -40,13 +40,7 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
 
         appContext = getApplicationContext();
 
-        L.disableChannel("trace");
-        L.disableChannel("thread");
-        L.disableChannel("new");
-        L.disableChannel("rewrite");
-        L.disableChannel("rewrite2");
-        L.disableChannel("memory");
-        L.disableChannel("gameOver");
+        L.disableChannel("lifecycle");
 
         readyForPaintingListener = new Runnable()
         {
@@ -55,17 +49,14 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
             {
                 if (gameScreen != null && gameEngine != null)
                 {
-                    if (!gameEngine.isActive()) //TODO: implies that a stopped game can be run again?
+                    if (!gameEngine.isActive()) //TODO: only start if hasn't been started (i.e. do not start if the same engine has simply been stopped).
                     {
-                        L.d("Received surfaceChanged callback.", "lifecycle");
                         gameEngine.startGame();
                     }
                     else if (!gameEngine.isPlaying())
                     {
-                        L.d("use screenshot?", "screenshot");
                         if (screenshot != null && !screenshot.isRecycled())
                         {
-                            L.d("using screenshot", "screenshot");
                             gameScreen.preparePaint();
                             gameScreen.paintBitmap(screenshot);
                         }
@@ -84,9 +75,7 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
                     @Override
                     public void run()
                     {
-                        L.d("stop on ui thread", "gameOver");
                         stopGame(null);
-                        L.d("after on ui thread", "gameOver");
                     }
                 });
             }
@@ -126,7 +115,6 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
     {
         gameFrame.removeAllViews();
         gameFrame.addView(gameScreen);
-        L.d("Game added to layout.", "lifecycle");
     }
 
     @Override
@@ -158,7 +146,6 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
         L.d("PAUSE", "lifecycle");
         pauseGameIfPlaying();
         super.onPause();
-        L.d("end of onPause callback", "gameOver");
     }
 
     /**
@@ -300,9 +287,9 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
     }
 
     // Should work even if pause menu is already showing.
-    private void showPauseMenu()
+    private void showPauseMenu() //TODO: why is pause menu hiding the game beneath it?!
     {
-        pauseMenu = findViewById(R.id.pauseMenu);
+        pauseMenu = findViewById(R.id.pauseMenu); //TODO: only run this once.
         pauseMenu.setVisibility(View.VISIBLE);
     }
 

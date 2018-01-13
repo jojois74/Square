@@ -250,8 +250,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 // Acquire the monitor lock, because we cannot update the game at the same time we are trying to draw it.
                 synchronized (monitorUpdateFrame)
                 {
-                    L.d("Update V", "thread");
-
                     // Do a game update.
                     update();
                     screenTouched = false;
@@ -274,12 +272,10 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                         {
                             if (!updateThreadPaused)
                             {
-                                L.d("pausedUpdates", "pause");
                                 pauseLatch.countDown();
                             }
                             updateThreadPaused = true;
                             monitorUpdateFrame.wait();
-                            L.d("WOKEN_U", "WOKEN");
                         }
                         catch (InterruptedException e)
                         {
@@ -291,13 +287,10 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     // Stop thread.
                     if (stopThreads)
                     {
-                        L.d("stop updates", "gameOver");
                         updateHandler.removeCallbacksAndMessages(null);
                         stopLatch.countDown();
                         return;
                     }
-
-                    L.d("Update ^", "thread");
                     //TODO: if updates are consistently taking too long (or even too short! [impossible?]) we can switch visualization modes.
                 }
             }
@@ -343,8 +336,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 frameTimeNanos -= vsyncOffsetNanos;
                 synchronized (monitorUpdateFrame)
                 {
-                    L.d("Frame V", "thread");
-
                     // Pause game.
                     // Spin lock when we want to pause.
                     while (pauseThreads)
@@ -367,11 +358,9 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                     }
                                 }
                                 pauseLatch.countDown();
-                                L.d("pausedFrames", "pause");
                             }
                             frameThreadPaused = true;
                             monitorUpdateFrame.wait();
-                            L.d("WOKEN_F", "WOKEN");
                         }
                         catch (InterruptedException e)
                         {
@@ -403,7 +392,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
                         while (true)
                         {
-                            L.d("GameStates: " + gameStates.size(), "new");
                             if (gameStates.size() >= 2) // We need two states to draw (saveInterpolationFields between them)
                             {
                                 // Get the first two saved states
@@ -435,7 +423,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 // If we are up to the new update, remove the old one as it is not needed.
                                 if (interpolationRatio >= 1)
                                 {
-                                    L.d("Removing a state we have used up", "new");
                                     // Remove the old update.
                                     if (gameStates.size() >= 1)
                                     {
@@ -477,11 +464,11 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                             }
                             else
                             {
-                                Log.w("T", "We want to draw but there aren't enough new updates!");
+                                Log.i("Frames", "We want to draw but there aren't enough new updates!");
                                 if (lastVisualizedGameState != null)
                                 {
                                     gameScreen.paintFrame(lastVisualizedGameState);
-                                    Log.w("T", " Using previous valid state.");
+                                    Log.i("Frames", " Using previous valid state.");
                                 }
                                 else
                                 {
@@ -495,10 +482,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     {
                         Log.i("Frames", "Skipped painting frame because unprepared");
                     }
-                    L.d("Frame ^", "thread");
-                    L.d("end of sync block", "rewrite2");
                 }
-                L.d("after sync block", "rewrite2");
 
                 // Prepare for next frame now, when we have all the time in the world.
                 // TODO: only do this if we actually have extra time, do not miss next frame callback!
@@ -522,10 +506,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
      */
     public void stopGame()
     {
-        L.d("Stop Game outer", "gameOver");
         synchronized (monitorControl)
         {
-            L.d("Stop Game inner", "gameOver");
             if (Thread.currentThread().getName().equals(appContext.getString(R.string.update_thread_name)))
             {
                 throw new IllegalThreadStateException("Cannot be called from "
@@ -552,21 +534,17 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             // Check if we are paused.
             if (isPlaying())
             {
-                L.d("pause in stop", "gameOver");
                 pauseGame();
             }
 
-            L.d("attempt to stop", "lifecycle2");
             stopLatch = new CountDownLatch(NUMBER_OF_THREADS);
             stopThreads = true; //TODO: synchronize this?
 
-            L.d("unpause in stop", "gameOver");
             resumeGame();
 
             try
             {
                 stopLatch.await();
-                System.out.println("After await");
             }
             catch (InterruptedException e)
             {
@@ -579,7 +557,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             // dead hands. Therefore, wait until we can grab the lock.
             synchronized (monitorUpdateFrame)
             {
-                L.d("Stop Game inner inner", "gameOver");
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2)
                 {
                     updateThreadLooper.quitSafely();
@@ -594,8 +571,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
             stopped = true;
             stopThreads = false;
-
-            L.d("Game stopped", "lifecycle2");
         }
     }
 
@@ -629,8 +604,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 throw new IllegalStateException("Cannot pause game that isn't running!");
             }
 
-            L.d("pausing in abstract game engine", "pause");
-
             pauseLatch = new CountDownLatch(NUMBER_OF_THREADS);
 
             // Tell threads to pause
@@ -647,7 +620,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
             gamePausedTimeStamp = System.nanoTime();
             paused = true;
-            L.d("after pausing in abstract game engine", "pause");
         }
     }
 
@@ -673,7 +645,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         {
             throw new IllegalStateException("Cannot resume game that isn't paused.");
         }
-        Log.d("resumeGame()", "Resuming game");
 
         // When we resume, time has passed, so push game states ahead
         // because they are not invalid yet. (Visual fix).

@@ -3,7 +3,7 @@
     <style name="Theme.NoTitleBar.Fullscreen.Splash" parent="@android:style/Theme.NoTitleBar.Fullscreen">
         <item name="android:windowIsTranslucent">false</item>
         <item name="android:windowDisablePreview">false</item>
-        <item name="android:colorBackground">#ffffff</item>
+        <item name="android:windowBackground">@color/bg</item>
     </style>
 
 </resources>
