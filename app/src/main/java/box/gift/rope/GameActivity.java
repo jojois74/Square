@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -287,7 +288,7 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
     }
 
     // Should work even if pause menu is already showing.
-    private void showPauseMenu() //TODO: why is pause menu hiding the game beneath it?!
+    private void showPauseMenu()
     {
         pauseMenu = findViewById(R.id.pauseMenu); //TODO: only run this once.
         pauseMenu.setVisibility(View.VISIBLE);

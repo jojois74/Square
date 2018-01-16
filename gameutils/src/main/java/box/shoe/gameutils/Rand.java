@@ -4,6 +4,8 @@ import java.util.Random;
 
 public class Rand extends Random
 {
+    /*pack*/ static final Rand instance = new Rand();
+
     public Rand()
     {
         super();

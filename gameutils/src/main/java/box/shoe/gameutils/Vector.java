@@ -194,4 +194,14 @@ public final class Vector implements Interpolatable<Vector>
         double newY = getY() * (1 - interpolationRatio) + other.getY() * interpolationRatio;
         return new Vector(newX, newY);
     }
+
+    public static Vector fromPolarDegrees(double r, double theta)
+    {
+        return Vector.fromPolarRadians(r, Math.toRadians(theta));
+    }
+
+    public static Vector fromPolarRadians(double r, double theta)
+    {
+        return new Vector(r * Math.cos(theta), r * Math.sin(theta));
+    }
 }

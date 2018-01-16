@@ -22,17 +22,16 @@ public class Wall extends Entity implements Paintable
         super(initialX, initialY, initialWidth, initialHeight, new Vector(-21, 0));
         this.horiz = horiz;
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paint.setColor(Color.RED);
     }
 
     @Override
     public void paint(Canvas canvas)
     {
-        paint.setColor(Color.parseColor("#aaaaff"));
-        canvas.drawRect((float) _getX(), (float) _getY(), (float) (_getX() + _width), (float) (_getY() + _height), paint);
-        paint.setColor(Color.WHITE);
         if (horiz)
         {
+            paint.setColor(Color.parseColor("#aaaaff"));
+            canvas.drawRect((float) _getX(), (float) _getY(), (float) (_getX() + _width), (float) (_getY() + _height), paint);
+            paint.setColor(Color.WHITE);
             for (int i = 0; i < Math.round(_height); i++)
             {
                 float y = (float) (_getY() + i);
@@ -44,14 +43,8 @@ public class Wall extends Entity implements Paintable
         }
         else
         {
-            for (int i = 0; i < Math.round(_width); i++)
-            {
-                float h = RopeGame.random.intFrom(0, (int) Math.round(_height));
-                float w = 1;
-                float x = (float) (_getX() + i);
-                float y = (float) (_getY() + ((_height - h) / 2));
-                canvas.drawRect(x, y, x + w, y + h, paint);
-            }
+            paint.setColor(Color.WHITE);
+            canvas.drawRect((float) _getX(), (float) _getY(), (float) (_getX() + _width), (float) (_getY() + _height), paint);
         }
     }
 

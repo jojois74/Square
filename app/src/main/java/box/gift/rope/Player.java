@@ -15,7 +15,8 @@ import box.shoe.gameutils.Vector;
 public class Player extends Entity implements Paintable
 {
     private Paint paint;
-    private int w = 4;
+    public int boosting = 0;
+    private int borderThickness = 4;
     /*package*/ static final Vector jumpVelocity = new Vector(0, -30);
 
     public Player(double initialX, double initialY)
@@ -30,7 +31,7 @@ public class Player extends Entity implements Paintable
         paint.setColor(Color.WHITE);
         canvas.drawRect((float) _position.getX(), (float) _position.getY(), (float) (_position.getX() + _width), (float) (_position.getY() + _height), paint);
         paint.setColor(Color.parseColor("#bbbbff"));
-        canvas.drawRect((float) (_position.getX() + w), (float) (_position.getY() + w), (float) (_position.getX() + _width - w), (float) (_position.getY() + _height - w), paint);
+        canvas.drawRect((float) (_position.getX() + borderThickness), (float) (_position.getY() + borderThickness), (float) (_position.getX() + _width - borderThickness), (float) (_position.getY() + _height - borderThickness), paint);
     }
 
     @Override

@@ -209,7 +209,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             // 1) Do game logic (game updates)
             // 2) Alert surface view (paint frames)
             updateThread.start();
-            frameThread.start();
+            frameThread.start(); //TODO: do not have THREADS start their operations until both are run and ready.
         }
     }
 
@@ -253,6 +253,8 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     // Do a game update.
                     update();
                     screenTouched = false;
+
+                    System.out.println(System.nanoTime() - startTime);
 
                     // Make new game state with time stamp of the start of this update round.
                     GameState gameState = new GameState();

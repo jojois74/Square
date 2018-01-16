@@ -3,18 +3,15 @@ package box.gift.rope;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.LinearGradient;
 import android.graphics.Paint;
-import android.graphics.Shader;
 
 import java.util.LinkedList;
 
 import box.shoe.gameutils.AbstractGameSurfaceView;
 import box.shoe.gameutils.Entity;
-import box.shoe.gameutils.FollowCamera;
 import box.shoe.gameutils.GameState;
 import box.shoe.gameutils.Paintable;
-import box.shoe.gameutils.Vector;
+import box.shoe.gameutils.SimpleEmitter;
 
 /**
  * Created by Joseph on 10/23/2017.
@@ -86,6 +83,19 @@ public class RopeScreen extends AbstractGameSurfaceView
         for (Paintable coin : coins)
         {
             coin.paint(canvas);
+        }
+
+        // Particles
+        SimpleEmitter coinEffectEmitter = gameState.get("coinEffectEmitter");
+        coinEffectEmitter.paint(canvas);
+        SimpleEmitter boostEffectEmitter = gameState.get("boostEffectEmitter");
+        boostEffectEmitter.paint(canvas);
+
+        // Boosts
+        LinkedList<Paintable> boosts = gameState.get("boosts");
+        for (Paintable boost : boosts)
+        {
+            boost.paint(canvas);
         }
 
         // Score
