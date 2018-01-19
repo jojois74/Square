@@ -29,9 +29,9 @@ public class Wall extends Entity implements Paintable
     {
         if (horiz)
         {
-            paint.setColor(Color.parseColor("#aaaaff"));
+            paint.setColor(RopeActivity.backgroundColor);
             canvas.drawRect((float) _getX(), (float) _getY(), (float) (_getX() + _width), (float) (_getY() + _height), paint);
-            paint.setColor(Color.WHITE);
+            paint.setColor(RopeActivity.foregroundColor);
             for (int i = 0; i < Math.round(_height); i++)
             {
                 float y = (float) (_getY() + i);
@@ -43,15 +43,8 @@ public class Wall extends Entity implements Paintable
         }
         else
         {
-            paint.setColor(Color.WHITE);
+            paint.setColor(RopeActivity.foregroundColor);
             canvas.drawRect((float) _getX(), (float) _getY(), (float) (_getX() + _width), (float) (_getY() + _height), paint);
         }
-    }
-
-    @Override
-    public void cleanup()
-    {
-        super.cleanup();
-        paint = null;
     }
 }

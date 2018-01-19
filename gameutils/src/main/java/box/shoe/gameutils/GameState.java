@@ -11,10 +11,10 @@ import java.util.Map;
  * Created by Joseph on 12/31/2017.
  */
 
-public class GameState implements Cleanable
+public class GameState
 {
     // The time at which the update which generated this GameState occurred.
-    private long timeStamp;
+    private volatile long timeStamp;
 
     // All data necessary for painting of this GameState.
     private Map<String, Object> data;
@@ -47,18 +47,5 @@ public class GameState implements Cleanable
     public <T> T get(String key)
     {
         return (T) data.get(key);
-    }
-
-    @SuppressLint("MissingSuperCall")
-    @Override
-    public void cleanup()
-    {
-        data = null;
-
-        for (InterpolatablesCarrier interpolatablesCarrier : interps.values())
-        {
-            interpolatablesCarrier.cleanup();
-        }
-        interps = null;
     }
 }

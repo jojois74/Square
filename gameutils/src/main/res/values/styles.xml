@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.Game" parent="@android:style/Theme.NoTitleBar.Fullscreen">
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowDisablePreview">false</item>
+    </style>
+</resources>

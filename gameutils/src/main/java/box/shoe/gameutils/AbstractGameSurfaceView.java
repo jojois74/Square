@@ -10,12 +10,14 @@ import android.graphics.PorterDuff;
 import android.support.annotation.NonNull;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 
 /**
  * Created by Joseph on 10/23/2017.
  */
 //fixme: buffering just for screenshot is taking a lot more thread cpu time!
-public abstract class AbstractGameSurfaceView extends SurfaceView implements SurfaceHolder.Callback, Cleanable, Screen
+    //TODO: when game resumes, should not jump so much from previous frame!
+public abstract class AbstractGameSurfaceView extends SurfaceView implements SurfaceHolder.Callback, Screen
 {
     private static final boolean DEBUG_SHOW_BOUNDING_BOXES = false; //TODO: allow to be set from public function
     private SurfaceHolder holder;
@@ -27,7 +29,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
 
     // We do not draw onto the surfaceCanvas directly.
     // We first draw to a buffer, which is great because now we can get a screenshot
-    // whenever we want (from the bufferBitmap). And we are able to use an enhanced Canvas subclass.
+    // whenever we want (from the bufferBitmap).
     private Canvas bufferCanvas;
     private Bitmap bufferBitmap;
 
@@ -37,8 +39,6 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
     public AbstractGameSurfaceView(Context context, Runnable readyForPaintingListener)
     {
         super(context);
-        setWillNotCacheDrawing(true);
-        setDrawingCacheEnabled(true);
         setWillNotDraw(true);
         this.readyForPaintingListener = readyForPaintingListener;
         holder = getHolder();
@@ -90,11 +90,7 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
     public void paintFrame(@NonNull GameState gameState)
     {
         checkState();
-        /*
-        if (abstractData == null)
-        {
-            throw new IllegalStateException("Data has not been giving for painting. Please call giveDataReference(AbstractGameEngine) to supply it.");
-        }*/
+
         // Clear the canvas
         bufferCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
 
@@ -113,15 +109,26 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
     }
 
     @Override
-    public void paintBitmap(@NonNull Bitmap bitmap)
+    public void paintStatic(@NonNull Bitmap bitmap)
     {
         checkState();
 
         // Clear the canvas
-        bufferCanvas.drawColor(Color.BLUE);
+        bufferCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
 
         // Draw the bitmap
         bufferCanvas.drawBitmap(bitmap, 0, 0,null);
+
+        postCanvas();
+    }
+
+    @Override
+    public void paintStatic(int color)
+    {
+        checkState();
+
+        // Draw the color
+        bufferCanvas.drawColor(color);
 
         postCanvas();
     }
@@ -163,6 +170,12 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         }
     }
 
+    @Override
+    public View asView()
+    {
+        return this;
+    }
+
     public void unregisterReadyForPaintingListener() //Irreversable
     {
         readyForPaintingListener = null;
@@ -191,14 +204,9 @@ public abstract class AbstractGameSurfaceView extends SurfaceView implements Sur
         return Bitmap.createBitmap(bufferBitmap);
     }
 
-    @SuppressLint("MissingSuperCall")
-    public void cleanup()
+    @Override
+    public void finalize()
     {
-        if (bufferBitmap != null)
-        {
-            bufferBitmap.recycle();
-            bufferBitmap = null;
-        }
-        holder = null;
+        bufferBitmap.recycle();
     }
 }

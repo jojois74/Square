@@ -27,14 +27,14 @@ public class Boost extends Entity implements Paintable
     @Override
     public void paint(Canvas canvas)
     {
-        paint.setColor(Color.WHITE);
+        paint.setColor(RopeActivity.foregroundColor);
         canvas.drawCircle((float) (_position.getX() + _width / 2), (float) (_position.getY() + _width / 2), (float) (_width / 2), paint);
-        paint.setColor(Color.parseColor("#aaaaff"));
+        paint.setColor(RopeActivity.backgroundColor);
         canvas.drawCircle((float) (_position.getX() + _width / 2), (float) (_position.getY() + _width / 2), (float) (_width / 2 - borderThickness), paint);
 
-        paint.setColor(Color.WHITE);
+        paint.setColor(RopeActivity.foregroundColor);
         canvas.drawCircle((float) (_position.getX() + _width / 2), (float) (_position.getY() + _width / 2), (float) (_width / 2.6), paint);
-        paint.setColor(Color.parseColor("#aaaaff"));
+        paint.setColor(RopeActivity.backgroundColor);
         canvas.drawCircle((float) (_position.getX() + _width / 2), (float) (_position.getY() + _width / 2), (float) (_width / 2.6 - borderThickness), paint);
     }
 }

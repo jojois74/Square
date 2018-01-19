@@ -13,8 +13,8 @@ import java.util.LinkedList;
  * and Vector objectsfor velocity and acceleration.
  * Width and height are different from display-width and display-height.
  */
-public class Entity implements Cleanable //TODO: position should also be vector in constructors?
-{ //TODO: extend AbstractEventDispatcher?
+public class Entity //TODO: position should also be vector in constructors?
+{ //TODO: extend Weaver?
     /*pack*/ static final LinkedList<Entity> ENTITIES = new LinkedList<>();
 
     // Width represents how much horizontal space this takes up.
@@ -196,13 +196,5 @@ public class Entity implements Cleanable //TODO: position should also be vector 
         _width = out.recall();
         _height = out.recall();
         _position = out.recall();
-    }
-
-    @SuppressLint("MissingSuperCall")
-    @Override
-    public void cleanup()
-    {
-        velocity = null;
-        acceleration = null;
     }
 }

@@ -5,6 +5,7 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
 import android.support.annotation.IntDef;
 import android.util.Log;
 import android.view.Choreographer;
@@ -30,14 +31,14 @@ import box.gift.gameutils.R;
  * Because these are not aligned, the engine interpolates between two game states for frame painting based on time,
  * and gives the interpolated game state to the Screen supplied to the constructor.
  */
-public abstract class AbstractGameEngine extends AbstractEventDispatcher implements Cleanable
+public abstract class AbstractGameEngine
 { //TODO: remove isActive()/isPlaying() and replace with a single state variable.
     // Define the possible UPS options, which are factors of 1000 (so we get an even number of MS per update).
     // This is not a hard requirement, and the annotation may be suppressed,
     // at the risk of possible jittery frame display.
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({1, 2, 4, 5, 8, 10, 20, 25, 40, 50, 100, 125, 200, 250, 500, 1000})
-    public @interface UPS_Options {} //Bug - '@interface' should be syntax highlighted annotation color (yellow), not keyword color (blue). ( Android Studio :D )
+    public @interface UPS_Options {}
 
     // Number of Updates Per Second that we would like to receive.
     // There are timing accuracy limitations,
@@ -80,7 +81,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     // Objs - remember to cleanup those that can be!
     private Choreographer vsync;
     private List<GameState> gameStates; // We want to use it like a queue, but we need to access the first two elements, so it cannot be one.
-    private GameState lastVisualizedGameState;
+    private GameState lastVisualizedGameState = null;
 
     // Const
     public static final int INACTIVE = 0;
@@ -141,6 +142,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             @Override
             public void run()
             {
+                Process.setThreadPriority(Process.THREAD_PRIORITY_FOREGROUND);
                 Looper.prepare();
                 updateThreadLooper = Looper.myLooper();
                 runUpdates();
@@ -154,6 +156,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             @Override
             public void run()
             {
+                Process.setThreadPriority(Process.THREAD_PRIORITY_FOREGROUND);
                 Looper.prepare();
                 frameThreadLooper = Looper.myLooper();
                 runFrames();
@@ -168,14 +171,12 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             {
                 // Humor the Android system.
                 v.performClick();
-                // Only use touch event if not paused TODO: maybe change this behavior? the idea is that pause menu handled by ui thread, bad idea?
+                // Only use touch event if not paused
                 if (isPlaying())
                 {
                     onTouchEvent(event);
                     return true;
-                } //TODO: join() this thread in stop, and for pause make this part of countdown latch, and wait this thread to make sure that it is done before pause happens? likely not necessary... simply have the child not do stuff with inputs after it ends the game, and the occasional input after a puase makes no diff
-                // TODO: and its not even a thread, usually just hijacks off main...
-                // TODO: so make sure its only called from main thread? possibly needed?
+                }
                 return false;
             }
         });
@@ -209,7 +210,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             // 1) Do game logic (game updates)
             // 2) Alert surface view (paint frames)
             updateThread.start();
-            frameThread.start(); //TODO: do not have THREADS start their operations until both are run and ready.
+            frameThread.start();
         }
     }
 
@@ -218,7 +219,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
      * In this call, we are guaranteed that the surfaceView (and thus the game) has dimensions,
      * so do any initialization that involves getGameWidth/getGameHeight.
      */
-    protected abstract void initialize(); //TODO: if at all possible, find a way to make abstract methods only callable by subclass.... ('protected' gives package access, why....)
+    protected abstract void initialize(); //TODO: if at all possible, find a way to make abstract methods only callable by subclass.... ('protected' gives package access, why....) (priority=low)
 
     private void runUpdates()
     {
@@ -233,12 +234,13 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
         Runnable updateCallback = new Runnable()
         {
             private boolean updateThreadPaused;
+            private long startTime = 0;
 
             @Override
             public void run()
             {
                 // Keep track of what time it is now. Goes first to get most accurate timing.
-                long startTime = System.nanoTime();
+                startTime = System.nanoTime();
 
                 // Schedule next update. Goes second to get as accurate as possible updates.
                 // We do it at the start to make sure we are waiting a precise amount of time
@@ -253,8 +255,6 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                     // Do a game update.
                     update();
                     screenTouched = false;
-
-                    System.out.println(System.nanoTime() - startTime);
 
                     // Make new game state with time stamp of the start of this update round.
                     GameState gameState = new GameState();
@@ -402,20 +402,26 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
 
                                 // Interpolate based on time that has past since the second active game state
                                 // as a fraction of the time between the two active states.
-                                //double interpolationRatio = (frameTimeNanos - newState.timeStamp) / ((double) timeBetween);
                                 double interpolationRatio;
 
                                 // TODO: auto switch paint modes in response to update lag. priority=low
                                 if (displayMode == DIS_MODE_FIX_UPDATE_DISPLAY_DURATION)
                                 {
                                     interpolationRatio = (frameTimeNanos - newState.getTimeStamp()) / ((double) expectedUpdateTimeNS);
+                                    if (interpolationRatio < 0)
+                                    {
+                                        Log.i("AbstractGameEngine", "interpolation ratio < 0: " + interpolationRatio);
+                                    }
                                 }
                                 else if (displayMode == DIS_MODE_VAR_UPDATE_DISPLAY_DURATION)
                                 {
                                     // Time that passed between the game states in question.
                                     long timeBetween = newState.getTimeStamp() - oldState.getTimeStamp();
                                     interpolationRatio = (frameTimeNanos - newState.getTimeStamp()) / ((double) timeBetween);
-                                    if (interpolationRatio < 0) interpolationRatio = 0; // Spooky action at a distance
+                                    if (interpolationRatio < 0)
+                                    {
+                                        Log.i("AbstractGameEngine", "interpolation ratio < 0: " + interpolationRatio);
+                                    }
                                 }
                                 else
                                 {
@@ -435,8 +441,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                                 }
                                 else
                                 {
-                                    List<Entity> entities = Entity.ENTITIES;
-                                    for (Entity entity : entities)
+                                    for (Entity entity : Entity.ENTITIES)
                                     {
                                         InterpolatablesCarrier oldInterpolatablesCarrier = oldState.interps.get(entity);
                                         InterpolatablesCarrier newInterpolatablesCarrier = newState.interps.get(entity);
@@ -490,7 +495,18 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
                 // TODO: only do this if we actually have extra time, do not miss next frame callback!
                 if (gameScreen.hasInitialized() && !gameScreen.hasPreparedPaint())
                 {
-                    gameScreen.preparePaint();
+                    // Only prepare if we think we will have something to paint.
+                    // It is ok to prepare if there are not enough game states, because maybe by next
+                    // callback there will be. But if there is no fallback in case no state is
+                    // available, we should be safe and not prepare.
+                    if (gameStates.size() > 1 || lastVisualizedGameState != null)
+                    {
+                        gameScreen.preparePaint();
+                    }
+                    else
+                    {
+                        Log.i("AbstractGameEngine", "Skip preparing because we may not be able to paint next frame.");
+                    }
                 }
             }
         };
@@ -540,7 +556,7 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
             }
 
             stopLatch = new CountDownLatch(NUMBER_OF_THREADS);
-            stopThreads = true; //TODO: synchronize this?
+            stopThreads = true;
 
             resumeGame();
 
@@ -716,35 +732,4 @@ public abstract class AbstractGameEngine extends AbstractEventDispatcher impleme
     }
 
     public abstract int getResult(); //TODO: remove eventually when we separate game engines from score game engines
-
-    @SuppressLint("MissingSuperCall") //Because this is the top level implementor
-    @Override
-    public void cleanup()
-    {
-        vsync = null;
-        updateThread = null;
-        frameThread = null;
-
-        for (GameState gameState : gameStates)
-        {
-            gameState.cleanup();
-        }
-        gameStates = null;
-
-        //Cleanup gameScreen TODO: more
-        gameScreen.setOnTouchListener(new View.OnTouchListener()
-        {
-            @Override
-            public boolean onTouch(View v, MotionEvent event)
-            {
-                v.performClick();
-                return false;
-            }
-        });
-
-        frameThreadLooper = null;
-        updateThreadLooper = null;
-        updateThread = null;
-        frameThread = null;
-    }
 }

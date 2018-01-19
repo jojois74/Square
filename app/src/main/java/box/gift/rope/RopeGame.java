@@ -11,16 +11,18 @@ import box.shoe.gameutils.AbstractGameSurfaceView;
 import box.shoe.gameutils.EntityCollisions;
 import box.shoe.gameutils.GameEvents;
 import box.shoe.gameutils.GameState;
+import box.shoe.gameutils.Screen;
 import box.shoe.gameutils.SimpleEmitter;
 import box.shoe.gameutils.TaskScheduler;
 import box.shoe.gameutils.Rand;
 import box.shoe.gameutils.Vector;
+import box.shoe.gameutils.Weaver;
 
 /**
  * Created by Joseph on 10/23/2017.
  */
 
-public class RopeGame extends AbstractGameEngine //TODO: slowdown before boost ends //TODO: coin gap btwn circles smaller
+public class RopeGame extends AbstractGameEngine
 {
     //> Consts
     // Updates per second that we would like to get from the engine.
@@ -58,7 +60,7 @@ public class RopeGame extends AbstractGameEngine //TODO: slowdown before boost e
     private int score = 0;
     private int wallSeparationDistance = 1000;
 
-    public RopeGame(Context appContext, AbstractGameSurfaceView screen)
+    public RopeGame(Context appContext, Screen screen)
     {
         super(appContext, RopeGame.TARGET_UPS, screen);
         scheduler = new TaskScheduler(RopeGame.TARGET_UPS);
@@ -68,17 +70,17 @@ public class RopeGame extends AbstractGameEngine //TODO: slowdown before boost e
 
         coinEffectEmitter = new SimpleEmitter.Builder()
                 .size(11)
-                .speed(50)
-                .color(Color.WHITE)
+                .speed(90)
+                .color(RopeActivity.foregroundColor)
                 .spanDegrees(1, 360)
-                .duration(3)
+                .duration(2)
                 .build();
 
         boostEffectEmitter = new SimpleEmitter.Builder()
-                .size(11)
+                .size(8)
                 .speed(60)
-                .color(Color.WHITE)
-                .spanDegrees(145, 215)
+                .color(RopeActivity.foregroundColor)
+                .spanDegrees(155, 205)
                 .duration(3)
                 .build();
 
@@ -110,7 +112,6 @@ public class RopeGame extends AbstractGameEngine //TODO: slowdown before boost e
     {
         // Let tasks run....
         scheduler.tick();
-
         // Move the particles, for visual effects!
         coinEffectEmitter.update();
         boostEffectEmitter.update();
@@ -129,6 +130,7 @@ public class RopeGame extends AbstractGameEngine //TODO: slowdown before boost e
 
         if (player.boosting > 0)
         {
+            boostEffectEmitter.emit(player.getX(), player.getY() + player.height / 2);
             boostEffectEmitter.emit(player.getX(), player.getY() + player.height / 2);
         }
 
@@ -189,11 +191,11 @@ public class RopeGame extends AbstractGameEngine //TODO: slowdown before boost e
         while (coinIterator.hasNext())
         {
             Coin coin = coinIterator.next();
-            if (EntityCollisions.entityEntity(player, coin)) //TODO: use circle collision for coins?
+            if (EntityCollisions.entityEntity(player, coin))
             {
                 score++;
                 coinIterator.remove();
-                for (int i = 0; i < 25; i++)
+                for (int i = 0; i < 50; i++)
                 {
                     coinEffectEmitter.emit(coin.getX(), coin.getY());
                 }
@@ -280,7 +282,8 @@ public class RopeGame extends AbstractGameEngine //TODO: slowdown before boost e
         if (rand == 0)
         {
             rand = random.intFrom(0, 3);
-            if (rand == 0)
+            // Do not spawn new boost if the player is currently boosting.
+            if (rand == 0 && player.boosting <= 0)
             {
                 boosts.add(new Boost(initialX, randHeight));
             }
@@ -317,7 +320,7 @@ public class RopeGame extends AbstractGameEngine //TODO: slowdown before boost e
         gameState.put("boostEffectEmitter", boostEffectEmitter);
     }
 
-    // Alerts the GameActivity that the game is over.
+    // Alerts the AbstractGameActivity that the game is over.
     private void playerDead()
     {
         // Make sure we do not dispatch the GAME_OVER event more than once.
@@ -326,7 +329,7 @@ public class RopeGame extends AbstractGameEngine //TODO: slowdown before boost e
             dispatchedGameOverEvent = true;
 
             // Tell all listeners that the game is over.
-            dispatchEvent(GameEvents.GAME_OVER);
+            Weaver.tug(GameEvents.GAME_OVER);
         }
     }
 
@@ -334,36 +337,5 @@ public class RopeGame extends AbstractGameEngine //TODO: slowdown before boost e
     public int getResult()
     {
         return score;
-    }
-
-    @Override
-    public void cleanup()
-    {
-        super.cleanup();
-
-        botBar.cleanup();
-        botBar = null;
-        topBar.cleanup();
-        topBar = null;
-
-        player.cleanup();
-        player = null;
-
-        scheduler.cleanup();
-        scheduler = null;
-
-        for (Wall wall : walls)
-        {
-            wall.cleanup();
-        }
-        walls.clear();
-        walls = null;
-
-        for (Coin coin : coins)
-        {
-            coin.cleanup();
-        }
-        coins.clear();
-        coins = null;
     }
 }

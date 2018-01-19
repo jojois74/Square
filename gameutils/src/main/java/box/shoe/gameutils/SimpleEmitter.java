@@ -37,7 +37,7 @@ public class SimpleEmitter implements Emitter, Paintable
     public void emit(double xPos, double yPos)
     {
         Entity particle = new Entity(xPos - size / 2, yPos - size / 2);
-        particle.velocity = Vector.fromPolarDegrees(speed, Rand.instance.intFrom((int) Math.toDegrees(startRadians), (int) Math.toDegrees(endRadians))); //TODO: we are turning deg into rad then back then forth. find better way
+        particle.velocity = Vector.fromPolarDegrees(speed, Rand.instance.intFrom((int) Math.toDegrees(startRadians), (int) Math.toDegrees(endRadians))); //TODO: we are turning deg into rad then back then forth. find better way (priority=low)
         particles.put(particle, 0);
     }
 

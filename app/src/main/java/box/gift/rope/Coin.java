@@ -4,7 +4,6 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 
-import box.shoe.gameutils.Cleanable;
 import box.shoe.gameutils.Entity;
 import box.shoe.gameutils.Paintable;
 import box.shoe.gameutils.Vector;
@@ -27,16 +26,9 @@ public class Coin extends Entity implements Paintable
     @Override
     public void paint(Canvas canvas)
     {
-        paint.setColor(Color.WHITE);
+        paint.setColor(RopeActivity.foregroundColor);
         canvas.drawCircle((float) (_position.getX() + _width / 2), (float) (_position.getY() + _width / 2), (float) (_width / 2), paint);
-        paint.setColor(Color.parseColor("#aaaaff"));
+        paint.setColor(RopeActivity.backgroundColor);
         canvas.drawCircle((float) (_position.getX() + _width / 2), (float) (_position.getY() + _width / 2), (float) (_width / 2 - borderThickness), paint);
-    }
-
-    @Override
-    public void cleanup()
-    {
-        super.cleanup();
-        paint = null;
     }
 }

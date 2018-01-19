@@ -1,9 +1,6 @@
 <resources>
-
-    <style name="Theme.NoTitleBar.Fullscreen.Splash" parent="@android:style/Theme.NoTitleBar.Fullscreen">
-        <item name="android:windowIsTranslucent">false</item>
-        <item name="android:windowDisablePreview">false</item>
-        <item name="android:windowBackground">@color/bg</item>
+    <style name="Theme.Game.Rope" parent="Theme.Game">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:textColor">@color/foreground</item>
     </style>
-
 </resources>

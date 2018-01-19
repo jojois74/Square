@@ -17,14 +17,18 @@ public interface Screen
     void unpreparePaint();
     boolean hasPreparedPaint();
 
+    Bitmap getScreenshot();
+
     void paintFrame(GameState gameState);
-    void paintBitmap(Bitmap bitmap);
+    void paintStatic(Bitmap bitmap);
+    void paintStatic(int color);
 
     int getWidth();
     int getHeight();
 
+    View asView();
+
     void setOnTouchListener(View.OnTouchListener onTouchListener);
 
-    boolean isVisible(Paintable paintable);
-    boolean isInbounds(Entity entity);
+    void unregisterReadyForPaintingListener();
 }

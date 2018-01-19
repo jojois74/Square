@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Master root layout -->
+    <item name="root" type="id" />
+
+    <!-- Where to place the game -->
+    <item name="gameContainer" type="id" />
+
+    <!-- Pause menu -->
+    <item name="pauseMenu" type="id" />
+
+    <!-- Overall screens -->
+    <item name="mainScreen" type="id" />
+    <item name="gameScreen" type="id" />
+</resources>

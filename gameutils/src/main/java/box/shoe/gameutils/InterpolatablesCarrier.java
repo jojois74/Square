@@ -9,7 +9,7 @@ import java.util.LinkedList;
  * Created by Joseph on 12/31/2017.
  */
 
-public class InterpolatablesCarrier implements Cleanable
+public class InterpolatablesCarrier
 {
     private LinkedList<Object> interps;
 
@@ -20,7 +20,7 @@ public class InterpolatablesCarrier implements Cleanable
 
     public void provide(Object obj)
     {
-        if (obj.getClass().equals(double.class) || obj.getClass().equals(Double.class)) //TODO: do I need to check primitive? isnt it autoboxed? rearange in order of likelihood.
+        if (obj.getClass().equals(Double.class))
         {
             interps.addLast(obj);
         }
@@ -67,7 +67,7 @@ public class InterpolatablesCarrier implements Cleanable
             }
             else
             {
-                if (obj.getClass().equals(double.class) || obj.getClass().equals(Double.class)) //TODO: do I need to check primitive? isnt it autoboxed? rearange in order of likelihood.
+                if (obj.getClass().equals(Double.class))
                 {
                     double iObj = (double) obj;
                     double iOtherObj = (double) otherObj;
@@ -92,12 +92,5 @@ public class InterpolatablesCarrier implements Cleanable
         // That is O(n), while isEmpty should be an O(1) check.
         // Remedy: scream at top of lungs!
         return interps.isEmpty();
-    }
-
-    @SuppressLint("MissingSuperCall")
-    @Override
-    public void cleanup()
-    {
-        interps = null;
     }
 }

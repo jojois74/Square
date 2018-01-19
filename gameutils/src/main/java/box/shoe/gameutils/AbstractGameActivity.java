@@ -1,47 +1,53 @@
-package box.gift.rope;
+package box.shoe.gameutils;
 
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
-import android.graphics.Typeface;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewStub;
 import android.widget.TextView;
 
+import box.gift.gameutils.R;
+import box.shoe.gameutils.Screen;
+import box.shoe.gameutils.Weaver;
 import box.shoe.gameutils.GameEvents;
 import box.shoe.gameutils.L;
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.AbstractGameSurfaceView;
-//TODO: there should be an interface updateable for entities, taskschedulers. particleeffetc etccc...
+//TODO: there should be an interface updateable to make a thing update for entities, taskschedulers. particleeffetc etccc...
 //TODO: place in gameutils module, so that it can be simply extended in the app module. (similarly, the layout files, somehow make customizable still)
-public class GameActivity extends Activity //TODO: destructive callbacks can do work before calling super, do not unpause when game unpauses, look at lunar landing ex
-{ //TODO: theme up splash screen
+//TODO: destructive callbacks can do work before calling super, do not unpause when game unpauses, look at lunar landing ex
+public abstract class AbstractGameActivity extends Activity
+{
     private Context appContext;
     private SharedPreferences sharedPreferences;
     private AbstractGameEngine gameEngine;
-    private AbstractGameSurfaceView gameScreen; //TODO: change var type to Screen once interface is robust enough
+    private Screen gameScreen; //TODO: change var type to Screen once interface is robust enough
     private Bitmap screenshot;
 
     private Runnable readyForPaintingListener;
     private Runnable gameOverHandler;
 
-    private ViewGroup gameFrame;
+    private ViewGroup gameView;
+    private ViewGroup mainMenuView;
+    private ViewGroup gameContainer;
     private View pauseMenu;
 
-    private boolean wasJustCreated = false;
+    private int gameSplashColor;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        L.d("CREATE", "lifecycle");
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+    protected void onCreate(Bundle savedInstanceState)
+    {
         super.onCreate(savedInstanceState);
 
         appContext = getApplicationContext();
 
-        L.disableChannel("lifecycle");
+        gameSplashColor = getResources().getColor(provideGameSplashColorId());
 
         readyForPaintingListener = new Runnable()
         {
@@ -52,14 +58,18 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
                 {
                     if (!gameEngine.isActive()) //TODO: only start if hasn't been started (i.e. do not start if the same engine has simply been stopped).
                     {
+                        gameScreen.preparePaint();
+                        gameScreen.paintStatic(gameSplashColor);
                         gameEngine.startGame();
+                        gameContainer.setVisibility(View.VISIBLE);
                     }
                     else if (!gameEngine.isPlaying())
                     {
                         if (screenshot != null && !screenshot.isRecycled())
                         {
                             gameScreen.preparePaint();
-                            gameScreen.paintBitmap(screenshot);
+                            gameScreen.paintStatic(screenshot);
+                            gameContainer.setVisibility(View.VISIBLE);
                         }
                     }
                 }
@@ -76,7 +86,7 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
                     @Override
                     public void run()
                     {
-                        stopGame(null);
+                        stopGame();
                     }
                 });
             }
@@ -84,16 +94,55 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
 
         sharedPreferences = getPreferences(Context.MODE_PRIVATE);
 
+        setContentView(R.layout.master_layout);
+
+        // Programmatically get the Main Menu layout and inflate the stub.
+        ViewStub stub = findViewById(R.id.mainMenuStub);
+        stub.setLayoutResource(provideMainMenuLayoutResId());
+        stub.inflate();
+
+        // Programmatically get the Pause Menu layout and inflate the stub.
+        stub = findViewById(R.id.pauseMenuStub);
+        stub.setLayoutResource(providePauseMenuLayoutResId());
+        stub.inflate();
+
+        // Save references to various Views we will need.
+        gameView = findViewById(R.id.gameScreen);
+        mainMenuView = findViewById(R.id.mainScreen);
+        gameContainer = findViewById(R.id.gameContainer);
+        pauseMenu = findViewById(R.id.pauseMenu);
+
+        gameContainer.setVisibility(View.INVISIBLE);
+
+        Weaver.hook(GameEvents.GAME_OVER, gameOverHandler);
+        Weaver.hook(GameEvents.GAME_QUIT, gameOverHandler);
+        Weaver.hook(GameEvents.GAME_START, new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                startGame();
+            }
+        });
+        Weaver.hook(GameEvents.GAME_RESUME, new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                resumeGame();
+            }
+        });
+
         showMainMenuLayout(0, sharedPreferences.getInt(getString(R.string.pref_best), 0));
-        wasJustCreated = true;
     }
 
     private void showMainMenuLayout(int score, int best) //TODO: score and best are a certain type of game, this should be an override in app mod, or even better, provided as a type of activity option
     {
-        setContentView(R.layout.menu_layout);
+        gameView.setVisibility(View.GONE);
+        mainMenuView.setVisibility(View.VISIBLE);
 
-        TextView scoreView = findViewById(R.id.score);
-        TextView bestView = findViewById(R.id.best);
+        TextView scoreView = findViewById(provideScoreTextViewIdResId());
+        TextView bestView = findViewById(provideBestTextViewIdResId());
 
         scoreView.setText(String.valueOf(score));
         bestView.setText(String.valueOf(best));
@@ -101,53 +150,56 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
 
     private void showGameLayout()
     {
-        setContentView(R.layout.game_layout);
-        gameFrame = findViewById(R.id.gameFrame);
+        mainMenuView.setVisibility(View.GONE);
+        gameView.setVisibility(View.VISIBLE);
     }
 
     private void createGame()
     {
-        gameScreen = new RopeScreen(appContext, readyForPaintingListener);
-        gameEngine = new RopeGame(appContext, gameScreen);
-        gameEngine.addEventListener(GameEvents.GAME_OVER, gameOverHandler);
+        gameScreen = provideNewScreen(appContext, readyForPaintingListener);
+        if (!(gameScreen instanceof View))
+        {
+            throw new IllegalStateException("provideNewScreen() must supply a Screen which is also a View.");
+        }
+        gameEngine = provideNewAbstractGameEngine(appContext, gameScreen);
     }
 
     private void showGame()
     {
-        gameFrame.removeAllViews();
-        gameFrame.addView(gameScreen);
+        gameContainer.removeAllViews();
+        gameContainer.addView(gameScreen.asView());
     }
 
     @Override
     protected void onStart()
     {
-        L.d("START", "lifecycle");
         super.onStart();
 
         // Determine if the game is stopped or just paused.
-        if (gameEngine == null || !gameEngine.isActive())
-        {
-            if (!wasJustCreated)
-            {
-                showMainMenuLayout(sharedPreferences.getInt(getString(R.string.pref_last_score), 0), sharedPreferences.getInt(getString(R.string.pref_best), 0));
-            }
-        }
-        else
+        if (gameEngine != null && gameEngine.isActive())
         {
             // Show the pause menu
             showPauseMenu();
         }
-
-        wasJustCreated = false;
     }
 
     @Override
     protected void onPause()
     {
-        L.d("PAUSE", "lifecycle");
         pauseGameIfPlaying();
         super.onPause();
     }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus)
+    {
+        System.out.println(hasFocus);
+        if (!hasFocus)
+        {
+            pauseGameIfPlaying();
+        }
+    }
+
 
     /**
      * If playing the game, pause it.
@@ -165,7 +217,7 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
         else if (gameEngine != null && gameEngine.isActive() && !gameEngine.isPlaying())
         {
             // If the game is paused, return to the game, as if the resume game button was pressed.
-            resumeGame(null);
+            resumeGame();
         }
         else
         {
@@ -191,8 +243,6 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
     @Override
     protected void onStop()
     {
-        L.d("STOP", "lifecycle");
-
         // save screenshot of the screen to paint when we resume.
         if (gameScreen != null && gameEngine != null && gameEngine.isActive())
         {
@@ -214,7 +264,6 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
     @Override
     protected void onDestroy()
     {
-        L.d("DESTROY", "lifecycle");
         if (screenshot != null)
         {
             screenshot.recycle();
@@ -230,7 +279,7 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
         }
         gameEngine = null;
         readyForPaintingListener = null;
-        gameFrame = null;
+        gameContainer = null;
         pauseMenu = null;
         //TODO; deal will gameScreen
 
@@ -238,20 +287,20 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
         super.onDestroy();
     }
 
-    public void startGame(View view)
+    private void startGame()
     {
         showGameLayout();
         createGame();
         showGame();
     }
 
-    public void resumeGame(View view)
+    private void resumeGame()
     {
         hidePauseMenu();
         gameEngine.resumeGame();
     }
 
-    public void stopGame(View view)
+    private void stopGame()
     {
         if (gameEngine.isActive())
         {
@@ -269,10 +318,7 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
         gameScreen = null;
         //TODO; cleanup gamescreen/gameengine
         // If we came from the pause menu, hide it.
-        if (view != null)
-        {
-            hidePauseMenu();
-        }
+        hidePauseMenu();
 
         SharedPreferences.Editor editor = sharedPreferences.edit();
         // Save last score.
@@ -290,7 +336,6 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
     // Should work even if pause menu is already showing.
     private void showPauseMenu()
     {
-        pauseMenu = findViewById(R.id.pauseMenu); //TODO: only run this once.
         pauseMenu.setVisibility(View.VISIBLE);
     }
 
@@ -298,4 +343,15 @@ public class GameActivity extends Activity //TODO: destructive callbacks can do 
     {
         pauseMenu.setVisibility(View.GONE);
     }
+
+    protected abstract Screen provideNewScreen(Context context, Runnable readyForPaintingListener);
+    protected abstract AbstractGameEngine provideNewAbstractGameEngine(Context context, Screen screen);
+
+    protected abstract int provideMainMenuLayoutResId();
+    protected abstract int providePauseMenuLayoutResId();
+
+    protected abstract int provideScoreTextViewIdResId();
+    protected abstract int provideBestTextViewIdResId();
+
+    protected abstract int provideGameSplashColorId();
 }

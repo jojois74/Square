@@ -43,24 +43,12 @@ public class RopeScreen extends AbstractGameSurfaceView
     public void initialize() {}
 
     @Override
-    public boolean isVisible(Paintable paintable)
-    {
-        return false;
-    }
-
-    @Override
-    public boolean isInbounds(Entity entity)
-    {
-        return false;
-    }
-
-    @Override
     protected void paint(Canvas canvas, GameState gameState)
     {
         Player player = gameState.get("player");
 
         // Background
-        canvas.drawColor(Color.parseColor("#aaaaff"));
+        canvas.drawColor(RopeActivity.backgroundColor);
 
         // Player
         player.paint(canvas);
@@ -99,15 +87,8 @@ public class RopeScreen extends AbstractGameSurfaceView
         }
 
         // Score
-        paint.setTextSize(50);
-        paint.setColor(Color.WHITE);
-        canvas.drawText(String.valueOf(gameState.get("score")), 60, 96, paint);
-    }
-
-    @Override
-    public void cleanup()
-    {
-        super.cleanup();
-        paint = null;
+        paint.setTextSize(70);
+        paint.setColor(RopeActivity.foregroundColor);
+        canvas.drawText(String.valueOf(gameState.get("score")), 60, 115, paint);
     }
 }

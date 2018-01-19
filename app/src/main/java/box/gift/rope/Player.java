@@ -28,16 +28,16 @@ public class Player extends Entity implements Paintable
     @Override
     public void paint(Canvas canvas)
     {
-        paint.setColor(Color.WHITE);
+        paint.setColor(RopeActivity.foregroundColor);
         canvas.drawRect((float) _position.getX(), (float) _position.getY(), (float) (_position.getX() + _width), (float) (_position.getY() + _height), paint);
-        paint.setColor(Color.parseColor("#bbbbff"));
+        if (boosting > 0)
+        {
+            paint.setColor(RopeActivity.foregroundColor);
+        }
+        else
+        {
+            paint.setColor(RopeActivity.accentColor);
+        }
         canvas.drawRect((float) (_position.getX() + borderThickness), (float) (_position.getY() + borderThickness), (float) (_position.getX() + _width - borderThickness), (float) (_position.getY() + _height - borderThickness), paint);
-    }
-
-    @Override
-    public void cleanup()
-    {
-        super.cleanup();
-        paint = null;
     }
 }

@@ -10,7 +10,7 @@ import java.util.Set;
  * Created by Joseph on 10/26/2017.
  */
 
-public class TaskScheduler implements Cleanable
+public class TaskScheduler
 {
     // Updates per millisecond of the engine that calls tick().
     // Used to calculate approx how many ticks for a given time.
@@ -70,20 +70,7 @@ public class TaskScheduler implements Cleanable
         }
     }
 
-    @SuppressLint("MissingSuperCall")
-    @Override
-    public void cleanup()
-    {
-        for (Task task : tasks)
-        {
-            task.cleanup();
-        }
-        tasks.clear();
-        tasks = null;
-    }
-
-    //TODO: hash code?
-    private class Task implements Cleanable
+    private class Task
     {
         private int maxFrames;
         private int currentFrame;
@@ -137,13 +124,6 @@ public class TaskScheduler implements Cleanable
                 return true;
             }
             return false;
-        }
-
-        @SuppressLint("MissingSuperCall")
-        @Override
-        public void cleanup()
-        {
-            schedulable = null;
         }
     }
 }

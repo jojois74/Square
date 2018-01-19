@@ -11,8 +11,8 @@
         <activity
             android:screenOrientation="userPortrait"
             android:configChanges="orientation|screenSize"
-            android:name=".GameActivity"
-            android:theme="@style/Theme.NoTitleBar.Fullscreen.Splash">
+            android:name=".RopeActivity"
+            android:theme="@style/Theme.Game.Rope">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

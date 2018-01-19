@@ -1,0 +1,63 @@
+<RelativeLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:visibility="gone"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:background="@drawable/pause_menu"
+        android:orientation="vertical"
+        tools:ignore="UselessParent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@color/accent"
+            android:text="Paused"
+            android:textAlignment="center"
+            android:textSize="@dimen/button_text"/>
+
+        <android.support.v4.widget.Space
+            android:layout_width="1dp"
+            android:layout_height="25dp"
+            android:background="@color/accent"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@color/accent"
+            android:orientation="horizontal">
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/pause_menu_button"
+                android:onClick="resume"
+                android:text="@string/resume_button_text"
+                android:textAlignment="center"
+                android:textSize="@dimen/button_text"/>
+
+            <android.support.v4.widget.Space
+                android:layout_width="18dp"
+                android:layout_height="1dp"/>
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/pause_menu_button"
+                android:onClick="quit"
+                android:text="@string/quit_button_text"
+                android:textAlignment="center"
+                android:textSize="@dimen/button_text"/>
+        </LinearLayout>
+    </LinearLayout>
+
+</RelativeLayout>
