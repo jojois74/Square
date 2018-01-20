@@ -327,7 +327,7 @@ public class RopeGame extends AbstractGameEngine
         if (!dispatchedGameOverEvent)
         {
             dispatchedGameOverEvent = true;
-
+            System.out.println("player dead");
             // Tell all listeners that the game is over.
             Weaver.tug(GameEvents.GAME_OVER);
         }

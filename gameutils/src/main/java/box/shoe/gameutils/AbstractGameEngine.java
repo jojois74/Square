@@ -408,20 +408,20 @@ public abstract class AbstractGameEngine
                                 if (displayMode == DIS_MODE_FIX_UPDATE_DISPLAY_DURATION)
                                 {
                                     interpolationRatio = (frameTimeNanos - newState.getTimeStamp()) / ((double) expectedUpdateTimeNS);
-                                    if (interpolationRatio < 0)
+                                    /*if (interpolationRatio < 0)
                                     {
                                         Log.i("AbstractGameEngine", "interpolation ratio < 0: " + interpolationRatio);
-                                    }
+                                    }*/
                                 }
                                 else if (displayMode == DIS_MODE_VAR_UPDATE_DISPLAY_DURATION)
                                 {
                                     // Time that passed between the game states in question.
                                     long timeBetween = newState.getTimeStamp() - oldState.getTimeStamp();
                                     interpolationRatio = (frameTimeNanos - newState.getTimeStamp()) / ((double) timeBetween);
-                                    if (interpolationRatio < 0)
+                                    /*if (interpolationRatio < 0)
                                     {
                                         Log.i("AbstractGameEngine", "interpolation ratio < 0: " + interpolationRatio);
-                                    }
+                                    }*/
                                 }
                                 else
                                 {

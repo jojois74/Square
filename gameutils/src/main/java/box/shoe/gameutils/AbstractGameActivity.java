@@ -193,7 +193,6 @@ public abstract class AbstractGameActivity extends Activity
     @Override
     public void onWindowFocusChanged(boolean hasFocus)
     {
-        System.out.println(hasFocus);
         if (!hasFocus)
         {
             pauseGameIfPlaying();

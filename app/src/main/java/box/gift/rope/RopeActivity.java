@@ -8,6 +8,7 @@ import android.view.View;
 import box.shoe.gameutils.AbstractGameActivity;
 import box.shoe.gameutils.AbstractGameEngine;
 import box.shoe.gameutils.GameEvents;
+import box.shoe.gameutils.L;
 import box.shoe.gameutils.Screen;
 import box.shoe.gameutils.Weaver;
 
@@ -24,6 +25,7 @@ public class RopeActivity extends AbstractGameActivity
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
+        L.LOG = false;
         foregroundColor = getResources().getColor(R.color.foreground);
         backgroundColor = getResources().getColor(R.color.background);
         accentColor = getResources().getColor(R.color.accent);
